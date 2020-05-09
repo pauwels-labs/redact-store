@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["ajp <8890201+ajpauwels@users.noreply.github.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+rust-config = { git = "https://github.com/ajpauwels/rust-config.git" }
+mongodb = "0.9.1"
+bson = "0.14.0"
+tokio = { version = "~0.2", features = ["macros"] }
+warp = { git = "https://github.com/ajpauwels/warp.git", branch = "master", features = [ "tls" ] }
+tokio-rustls = { version = "~0.13" }
+hyper = { version = "~0.13" }
+futures = { version = "~0.3" }
