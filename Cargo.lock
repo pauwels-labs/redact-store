@@ -134,7 +134,7 @@ dependencies = [
  "linked-hash-map 0.5.3",
  "md5",
  "rand 0.7.3",
- "serde 1.0.107",
+ "serde 1.0.110",
  "serde_json",
  "time",
 ]
@@ -220,7 +220,7 @@ dependencies = [
  "lazy_static",
  "nom",
  "rust-ini",
- "serde 1.0.107",
+ "serde 1.0.110",
  "serde-hjson",
  "serde_json",
  "toml",
@@ -844,7 +844,7 @@ dependencies = [
  "percent-encoding",
  "rand 0.7.3",
  "rustls 0.16.0",
- "serde 1.0.107",
+ "serde 1.0.110",
  "serde_with",
  "sha-1",
  "sha2",
@@ -953,7 +953,7 @@ dependencies = [
  "lazy_static",
  "log 0.4.8",
  "regex",
- "serde 1.0.107",
+ "serde 1.0.110",
  "serde_derive",
  "winapi 0.3.8",
 ]
@@ -1020,18 +1020,18 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "0.4.13"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82c3bfbfb5bb42f99498c7234bbd768c220eb0cea6818259d0d18a1aa3d2595d"
+checksum = "2bbe07cee13ca15295ce93a5b1094d63e0420603e91ffda4f86d4478988916f2"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "0.4.13"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccbf6449dcfb18562c015526b085b8df1aa3cdab180af8ec2ebd300a3bd28f63"
+checksum = "1b789ec51a10e5a985a9863ef8791412523334d6240fab2cf40dd9fd47496dc6"
 dependencies = [
  "proc-macro2 1.0.12",
  "quote 1.0.4",
@@ -1383,7 +1383,7 @@ version = "0.1.0"
 source = "git+https://github.com/ajpauwels/rust-config.git#b76221422dc665059d332d5a5ebb1f94ba951f24"
 dependencies = [
  "config",
- "serde 1.0.107",
+ "serde 1.0.110",
 ]
 
 [[package]]
@@ -1495,9 +1495,9 @@ checksum = "9dad3f759919b92c3068c696c15c3d17238234498bbdcc80f2c469606f948ac8"
 
 [[package]]
 name = "serde"
-version = "1.0.107"
+version = "1.0.110"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eba7550f2cdf88ffc23ab0f1607133486c390a8c0f89b57e589b9654ee15e04d"
+checksum = "99e7b308464d16b56eba9964e4972a3eee817760ab60d88c3f86e1fecb08204c"
 dependencies = [
  "serde_derive",
 ]
@@ -1517,9 +1517,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.107"
+version = "1.0.110"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10be45e22e5597d4b88afcc71f9d7bfadcd604bf0c78a3ab4582b8d2b37f39f3"
+checksum = "818fbf6bfa9a42d3bfcaca148547aa00c7b915bec71d1757aa2d44ca68771984"
 dependencies = [
  "proc-macro2 1.0.12",
  "quote 1.0.4",
@@ -1528,14 +1528,14 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.52"
+version = "1.0.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7894c8ed05b7a3a279aeb79025fdec1d3158080b75b98a08faf2806bb799edd"
+checksum = "993948e75b189211a9b31a7528f950c6adc21f9720b6438ff80a7fa2f864cea2"
 dependencies = [
  "indexmap",
  "itoa",
  "ryu",
- "serde 1.0.107",
+ "serde 1.0.110",
 ]
 
 [[package]]
@@ -1555,7 +1555,7 @@ checksum = "9ec5d77e2d4c73717816afac02670d5c4f534ea95ed430442cad02e7a6e32c97"
 dependencies = [
  "dtoa",
  "itoa",
- "serde 1.0.107",
+ "serde 1.0.110",
  "url",
 ]
 
@@ -1565,7 +1565,7 @@ version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89d3d595d64120bbbc70b7f6d5ae63298b62a3d9f373ec2f56acf5365ca8a444"
 dependencies = [
- "serde 1.0.107",
+ "serde 1.0.110",
  "serde_with_macros",
 ]
 
@@ -1846,7 +1846,7 @@ version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
 dependencies = [
- "serde 1.0.107",
+ "serde 1.0.110",
 ]
 
 [[package]]
@@ -2054,7 +2054,7 @@ dependencies = [
 [[package]]
 name = "warp"
 version = "0.2.2"
-source = "git+https://github.com/ajpauwels/warp.git#380cc6ed6ae41c7a87545e74ac9058f47c2d66d2"
+source = "git+https://github.com/ajpauwels/warp.git#7bc93c0a1b2a5dc0c9a3f2a11dfdf13ae2ccf0bd"
 dependencies = [
  "bytes",
  "futures",
@@ -2067,7 +2067,7 @@ dependencies = [
  "multipart",
  "pin-project",
  "scoped-tls",
- "serde 1.0.107",
+ "serde 1.0.110",
  "serde_json",
  "serde_urlencoded",
  "tokio",
