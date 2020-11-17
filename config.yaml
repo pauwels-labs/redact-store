@@ -1,9 +1,0 @@
-tls:
-  server:
-    key:
-      path: tls/key.pem
-    cert:
-      path: tls/cert.pem
-  client:
-    ca:
-      path: tls/clientca.pem
