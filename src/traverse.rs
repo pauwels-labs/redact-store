@@ -21,11 +21,10 @@ pub fn traverse<'a>(
     let validated_path = validate_path(path);
     let data_coll = db.collection("data");
     let mut doc = bson::doc! {
-        "type": "boolean",
         "path": &validated_path,
     };
 
-    // Handle all possible value type
+    // Handle all possible value types
     if entry.is_boolean() {
         let val = match entry.as_bool() {
             Some(val) => val,
@@ -38,6 +37,7 @@ pub fn traverse<'a>(
             }
         };
         doc.insert("value", val);
+        doc.insert("data_type", "boolean");
         Box::pin(async move {
             match data_coll
                 .replace_one(
@@ -67,6 +67,7 @@ pub fn traverse<'a>(
             }
         };
         doc.insert("value", val);
+        doc.insert("data_type", "u64");
         Box::pin(async move {
             match data_coll
                 .replace_one(
@@ -96,6 +97,7 @@ pub fn traverse<'a>(
             }
         };
         doc.insert("value", val);
+        doc.insert("data_type", "i64");
         Box::pin(async move {
             match data_coll
                 .replace_one(
@@ -125,6 +127,7 @@ pub fn traverse<'a>(
             }
         };
         doc.insert("value", val);
+        doc.insert("data_type", "f64");
         Box::pin(async move {
             match data_coll
                 .replace_one(
@@ -154,6 +157,7 @@ pub fn traverse<'a>(
             }
         };
         doc.insert("value", val);
+        doc.insert("data_type", "string");
         Box::pin(async move {
             match data_coll
                 .replace_one(
@@ -266,23 +270,23 @@ pub fn validate_path(path: &str) -> String {
         // of the short-circuit implemented at the beginning of the function
         (None, None) => panic!(
             "this is an impossible situation; if you have gotten here, \\
-		    a short-circuit earlier in the function has failed to function as
-            intended"
+	     a short-circuit earlier in the function has failed to function as \\
+	     intended"
         ),
         // Impossible case: if this happens we should panic because something is
         // fundamentally wrong with the computing environment and someone should
         // know about it.
         // If the last char is != None, then it MUST BE that the
         // first char is != None, as the last char is collected after the
-        // iterator has ticked over one spot to account for the firs char,
+        // iterator has ticked over one spot to account for the first char,
         // therefore if the iterator finds something in the last() call, then
         // it must be after having collected something from the nth(0) call.
         (None, Some(_)) => panic!(
             "this is an impossible situation; if you have gotten here, \\
-		 something has happened that should never happen according to the
-            laws of computing and/or the rust compiler. if you have gotten here,
-            some major memory or computing trickery has occurred and you should
-            be concerned for the integrity of your computing base"
+	     something has happened that should never happen according to the \\
+	     laws of computing and/or the rust compiler. if you have gotten here, \\
+	     some major memory or computing trickery has occurred and you should \\
+	     be concerned for the integrity of your computing base"
         ),
     }
 }

@@ -8,27 +8,32 @@ use warp::Filter;
 #[derive(Serialize)]
 struct Healthz {}
 
-#[derive(Serialize)]
-struct StoreResponse {
-    success: bool,
-    msg: String,
-}
-
 #[tokio::main]
 async fn main() {
+    // Extract config with a REDACT_ env var prefix
     let config = rust_config::new("REDACT").unwrap();
+
+    // Determine port to listen on
     let port = match config.get_int("server.port") {
         Ok(port) => {
             if port < 1 || port > 65535 {
-                // TODO: Add debug log entry here
+                println!("listen port value '{}' is not between 1 and 65535", port);
                 8080 as u16
             } else {
                 port as u16
             }
         }
-        Err(_) => 8080 as u16,
+        Err(e) => {
+            match e {
+                // Suppress debug logging if server.port was simply not set
+                rust_config::ConfigError::NotFound(_) => (),
+                _ => println!("{}", e),
+            }
+            8080 as u16
+        }
     };
 
+    // Extract handle to the database
     let db_url = config.get_str("db.url").unwrap();
     let db_client_options = ClientOptions::parse_with_resolver_config(
         &db_url,
@@ -41,30 +46,98 @@ async fn main() {
 
     // Initial ping to establish DB connection
     println!("connecting to database");
-    db.run_command(bson::doc! {"ping": 1}, None).await.unwrap();
+    db.clone()
+        .run_command(bson::doc! {"ping": 1}, None)
+        .await
+        .unwrap();
     println!("connected to database");
 
+    // Build out routes
     let health_route = warp::path!("healthz").map(|| warp::reply::json(&Healthz {}));
-    let store_route = warp::path!("store")
-        .and(warp::post())
-        .and(warp::body::content_length_limit(1024 * 1000 * 250))
-        .and(warp::body::json())
-        .and_then(move |contents| {
-            let db = db.clone();
-            async move {
-                match traverse::traverse(&db, "", &contents).await {
-                    Ok(_) => {
-                        return Ok(warp::reply::json(&StoreResponse {
-                            success: true,
-                            msg: "inserted".to_string(),
-                        }))
-                    }
-                    Err(_) => return Err(warp::reject::reject()),
-                }
-            }
-        });
+    let data_routes = filters::data(db);
 
+    // Start the server
     println!("starting server");
-    let all_routes = health_route.or(store_route);
-    warp::serve(all_routes).run(([0, 0, 0, 0], port)).await;
+    let routes = health_route.or(data_routes);
+    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+}
+
+mod filters {
+    use mongodb::Database;
+    use serde::{Deserialize, Serialize};
+    use serde_json::Value;
+    use warp::{Filter, Rejection, Reply};
+
+    #[derive(Serialize)]
+    struct GetResponse {
+        data_type: String,
+        path: String,
+        value: serde_json::Value,
+    }
+
+    #[derive(Serialize)]
+    struct CreateResponse {
+        success: bool,
+        msg: String,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct GetQuery {
+        path: String,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct Data {
+        data_type: String,
+        path: String,
+        value: Value,
+    }
+
+    pub fn data(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+        data_get(db.clone()).or(data_create(db.clone()))
+    }
+
+    pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+        warp::path!("data")
+            .and(warp::get())
+            .and(warp::query::<GetQuery>())
+            .and(with_db(db))
+            .and_then(move |query: GetQuery, db: Database| async move {
+                let filter_options = mongodb::options::FindOneOptions::builder().build();
+                let filter = bson::doc! { "path": query.path };
+                match db.collection("data").find_one(filter, filter_options).await {
+                    Ok(Some(doc)) => {
+                        let data: Data = bson::from_document(doc).unwrap();
+                        Ok(warp::reply::json(&data))
+                    }
+                    Ok(None) => Err(warp::reject::not_found()),
+                    Err(e) => Err(warp::reject::reject()),
+                }
+            })
+    }
+
+    pub fn data_create(
+        db: Database,
+    ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+        warp::path!("data")
+            .and(warp::post())
+            .and(warp::body::content_length_limit(1024 * 1000 * 250))
+            .and(warp::body::json())
+            .and(with_db(db))
+            .and_then(move |contents, db: Database| async move {
+                match super::traverse::traverse(&db, "", &contents).await {
+                    Ok(_) => Ok(warp::reply::json(&CreateResponse {
+                        success: true,
+                        msg: "inserted".to_string(),
+                    })),
+                    Err(_) => Err(warp::reject::reject()),
+                }
+            })
+    }
+
+    fn with_db(
+        db: Database,
+    ) -> impl Filter<Extract = (Database,), Error = std::convert::Infallible> + Clone {
+        warp::any().map(move || db.clone())
+    }
 }
