@@ -104,6 +104,7 @@ mod filters {
 
     pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         warp::path!("data")
+            .and(warp::get())
             .and(warp::query::<GetQuery>())
             .and(with_db(db))
             .and_then(move |query: GetQuery, db: Database| async move {
