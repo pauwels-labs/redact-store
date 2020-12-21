@@ -10,6 +10,8 @@ struct Healthz {}
 
 #[tokio::main]
 async fn main() {
+    pretty_env_logger::init();
+
     // Extract config with a REDACT_ env var prefix
     let config = rust_config::new("REDACT").unwrap();
 
@@ -58,7 +60,8 @@ async fn main() {
 
     // Start the server
     println!("starting server");
-    let routes = health_route.or(data_routes);
+    let routes = health_route.or(data_routes).with(warp::log("routes"));
+
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
@@ -99,7 +102,6 @@ mod filters {
 
     pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         warp::path!("data")
-            .and(warp::get())
             .and(warp::query::<GetQuery>())
             .and(with_db(db))
             .and_then(move |query: GetQuery, db: Database| async move {
