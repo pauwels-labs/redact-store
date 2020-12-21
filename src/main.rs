@@ -44,7 +44,9 @@ async fn main() {
     .await
     .unwrap();
     let db_client = Client::with_options(db_client_options).unwrap();
-    let db = db_client.database("redact");
+
+    let db_name = config.get_str("db.name").unwrap();
+    let db = db_client.database(&db_name);
 
     // Initial ping to establish DB connection
     println!("connecting to database");
