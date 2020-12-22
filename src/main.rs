@@ -71,7 +71,7 @@ mod filters {
     use mongodb::Database;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-    use warp::{Filter, Rejection, Reply};
+    use warp::{Filter, Rejection, Reply, http::StatusCode, reject::Reject};
 
     #[derive(Serialize)]
     struct GetResponse {
@@ -98,6 +98,10 @@ mod filters {
         value: Value,
     }
 
+    #[derive(Debug)]
+    struct NotFound;
+    impl Reject for NotFound {}
+
     pub fn data(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         data_get(db.clone()).or(data_create(db.clone()))
     }
@@ -110,13 +114,26 @@ mod filters {
             .and_then(move |query: GetQuery, db: Database| async move {
                 let filter_options = mongodb::options::FindOneOptions::builder().build();
                 let filter = bson::doc! { "path": query.path };
+
                 match db.collection("data").find_one(filter, filter_options).await {
                     Ok(Some(doc)) => {
                         let data: Data = bson::from_document(doc).unwrap();
                         Ok(warp::reply::json(&data))
                     }
-                    Ok(None) => Err(warp::reject::not_found()),
+                    Ok(None) => Err(warp::reject::custom(NotFound)),
                     Err(e) => Err(warp::reject::reject()),
+                }
+            })
+            .recover(move |rejection: Rejection| async move {
+                let reply = warp::reply::reply();
+
+                if let Some(NotFound) = rejection.find() {
+                    Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+                } else {
+                    Ok(warp::reply::with_status(
+                        reply,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    ))
                 }
             })
     }
