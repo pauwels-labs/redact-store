@@ -112,7 +112,7 @@ mod filters {
             .and(warp::get())
             .and(warp::query::<GetQuery>())
             .and(with_db(db))
-            .and_then(move |_, query: GetQuery, db: Database| async move {
+            .and_then(move |query: GetQuery, db: Database| async move {
                 let filter_options = mongodb::options::FindOneOptions::builder().build();
                 let filter = bson::doc! { "path": query.path };
 
