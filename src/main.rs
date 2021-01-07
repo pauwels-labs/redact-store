@@ -10,6 +10,8 @@ struct Healthz {}
 
 #[tokio::main]
 async fn main() {
+    pretty_env_logger::init();
+
     // Extract config with a REDACT_ env var prefix
     let config = rust_config::new("REDACT").unwrap();
 
@@ -42,7 +44,9 @@ async fn main() {
     .await
     .unwrap();
     let db_client = Client::with_options(db_client_options).unwrap();
-    let db = db_client.database("redact");
+
+    let db_name = config.get_str("db.name").unwrap();
+    let db = db_client.database(&db_name);
 
     // Initial ping to establish DB connection
     println!("connecting to database");
@@ -58,7 +62,8 @@ async fn main() {
 
     // Start the server
     println!("starting server");
-    let routes = health_route.or(data_routes);
+    let routes = health_route.or(data_routes).with(warp::log("routes"));
+
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
@@ -66,7 +71,7 @@ mod filters {
     use mongodb::Database;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-    use warp::{Filter, Rejection, Reply};
+    use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
     #[derive(Serialize)]
     struct GetResponse {
@@ -93,6 +98,10 @@ mod filters {
         pub value: Value,
     }
 
+    #[derive(Debug)]
+    struct NotFound;
+    impl Reject for NotFound {}
+
     pub fn data(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         data_get(db.clone()).or(data_create(db.clone()))
     }
@@ -105,13 +114,26 @@ mod filters {
             .and_then(move |query: GetQuery, db: Database| async move {
                 let filter_options = mongodb::options::FindOneOptions::builder().build();
                 let filter = bson::doc! { "path": query.path };
+
                 match db.collection("data").find_one(filter, filter_options).await {
                     Ok(Some(doc)) => {
                         let data: Data = bson::from_document(doc).unwrap();
                         Ok(warp::reply::json(&data))
                     }
-                    Ok(None) => Err(warp::reject::not_found()),
-                    Err(_) => Err(warp::reject::reject()),
+                    Ok(None) => Err(warp::reject::custom(NotFound)),
+                    Err(e) => Err(warp::reject::reject()),
+                }
+            })
+            .recover(move |rejection: Rejection| async move {
+                let reply = warp::reply::reply();
+
+                if let Some(NotFound) = rejection.find() {
+                    Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+                } else {
+                    Ok(warp::reply::with_status(
+                        reply,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    ))
                 }
             })
     }
