@@ -87,10 +87,10 @@ mod filters {
     }
 
     #[derive(Serialize, Deserialize)]
-    struct Data {
-        data_type: String,
-        path: String,
-        value: Value,
+    pub struct Data {
+        pub data_type: String,
+        pub path: String,
+        pub value: Value,
     }
 
     pub fn data(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -111,7 +111,7 @@ mod filters {
                         Ok(warp::reply::json(&data))
                     }
                     Ok(None) => Err(warp::reject::not_found()),
-                    Err(e) => Err(warp::reject::reject()),
+                    Err(_) => Err(warp::reject::reject()),
                 }
             })
     }
@@ -122,10 +122,10 @@ mod filters {
         warp::path!("data")
             .and(warp::post())
             .and(warp::body::content_length_limit(1024 * 1000 * 250))
-            .and(warp::body::json())
+            .and(warp::body::json::<Data>())
             .and(with_db(db))
-            .and_then(move |contents, db: Database| async move {
-                match super::traverse::traverse(&db, "", &contents).await {
+            .and_then(move |contents: Data, db: Database| async move {
+                match super::traverse::insert(&db, &contents).await {
                     Ok(_) => Ok(warp::reply::json(&CreateResponse {
                         success: true,
                         msg: "inserted".to_string(),

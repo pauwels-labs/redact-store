@@ -1,9 +1,112 @@
+use crate::filters::Data;
 use mongodb::Database;
 use serde_json::Value;
 
 pub struct TraverseSuccess {}
 pub struct TraverseError {
     msg: String,
+}
+
+pub fn insert<'a>(
+    db: &'a Database,
+    data: &'a Data,
+) -> std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<TraverseSuccess, TraverseError>> + 'a + Send>,
+> {
+    let data_coll = db.collection("data");
+    let validated_path = validate_path(&data.path);
+
+    let mut doc = bson::doc! {
+    "path": &validated_path,
+    "data_type": &data.data_type,
+    };
+
+    // Handle all possible value types
+    if data.value.is_boolean() {
+        let val = match data.value.as_bool() {
+            Some(val) => val,
+            None => {
+                return Box::pin(async move {
+                    Err(TraverseError {
+                        msg: "could not extract bool from data.value".to_string(),
+                    })
+                });
+            }
+        };
+        doc.insert("value", val);
+    } else if data.value.is_u64() {
+        let val = match data.value.as_u64() {
+            Some(val) => val,
+            None => {
+                return Box::pin(async move {
+                    Err(TraverseError {
+                        msg: "could not extract u64 from data.value".to_string(),
+                    })
+                });
+            }
+        };
+        doc.insert("value", val);
+    } else if data.value.is_i64() {
+        let val = match data.value.as_i64() {
+            Some(val) => val,
+            None => {
+                return Box::pin(async move {
+                    Err(TraverseError {
+                        msg: "could not extract i64 from data.value".to_string(),
+                    })
+                });
+            }
+        };
+        doc.insert("value", val);
+    } else if data.value.is_f64() {
+        let val = match data.value.as_f64() {
+            Some(val) => val,
+            None => {
+                return Box::pin(async move {
+                    Err(TraverseError {
+                        msg: "could not extract f64 from data.value".to_string(),
+                    })
+                });
+            }
+        };
+        doc.insert("value", val);
+    } else if data.value.is_string() {
+        let val = match data.value.as_str() {
+            Some(val) => val,
+            None => {
+                return Box::pin(async move {
+                    Err(TraverseError {
+                        msg: "could not extract string from data.value".to_string(),
+                    })
+                });
+            }
+        };
+        doc.insert("value", val);
+    } else {
+        return Box::pin(async move {
+            Err(TraverseError {
+                msg: "data is not of a valid type".to_string(),
+            })
+        });
+    }
+
+    Box::pin(async move {
+        match data_coll
+            .replace_one(
+                bson::doc! {"path": &validated_path},
+                doc,
+                mongodb::options::ReplaceOptions::builder()
+                    .upsert(true)
+                    .build(),
+            )
+            .await
+        {
+            Ok(_) => Ok(TraverseSuccess {}),
+            Err(e) => Err(TraverseError {
+                msg: format!("unable to insert the mongodb doc: {}", e),
+            }),
+        }
+    })
 }
 
 pub fn traverse<'a>(
@@ -21,7 +124,7 @@ pub fn traverse<'a>(
     let validated_path = validate_path(path);
     let data_coll = db.collection("data");
     let mut doc = bson::doc! {
-        "path": &validated_path,
+    "path": &validated_path,
     };
 
     // Handle all possible value types
