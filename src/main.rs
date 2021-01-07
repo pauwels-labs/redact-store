@@ -61,7 +61,7 @@ async fn main() {
     let data_routes = filters::data(db);
 
     // Start the server
-    println!("starting server");
+    println!("starting server listening on ::{}", port);
     let routes = health_route.or(data_routes).with(warp::log("routes"));
 
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
@@ -91,7 +91,7 @@ mod filters {
         path: String,
     }
 
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct Data {
         pub data_type: String,
         pub path: String,
@@ -103,7 +103,8 @@ mod filters {
     impl Reject for NotFound {}
 
     pub fn data(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-        data_get(db.clone()).or(data_create(db.clone()))
+        data_create(db.clone()).or(data_get(db.clone()))
+        //data_create(db.clone()).or(data_get(db.clone()))
     }
 
     pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -111,7 +112,7 @@ mod filters {
             .and(warp::get())
             .and(warp::query::<GetQuery>())
             .and(with_db(db))
-            .and_then(move |query: GetQuery, db: Database| async move {
+            .and_then(move |_, query: GetQuery, db: Database| async move {
                 let filter_options = mongodb::options::FindOneOptions::builder().build();
                 let filter = bson::doc! { "path": query.path };
 
@@ -142,8 +143,7 @@ mod filters {
         db: Database,
     ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         warp::path!("data")
-            .and(warp::post())
-            .and(warp::body::content_length_limit(1024 * 1000 * 250))
+            .and(warp::body::content_length_limit(1024 * 1024 * 250))
             .and(warp::body::json::<Data>())
             .and(with_db(db))
             .and_then(move |contents: Data, db: Database| async move {
