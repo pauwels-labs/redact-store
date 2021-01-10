@@ -72,6 +72,7 @@ mod filters {
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
+    use futures::StreamExt;
 
     #[derive(Serialize)]
     struct GetResponse {
@@ -89,6 +90,8 @@ mod filters {
     #[derive(Serialize, Deserialize)]
     struct GetQuery {
         path: String,
+        skip: Option<i64>,
+        page_size: Option<i64>,
     }
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -113,17 +116,36 @@ mod filters {
             .and(warp::query::<GetQuery>())
             .and(with_db(db))
             .and_then(move |query: GetQuery, db: Database| async move {
-                let filter_options = mongodb::options::FindOneOptions::builder().build();
-                let filter = bson::doc! { "path": query.path };
 
-                match db.collection("data").find_one(filter, filter_options).await {
-                    Ok(Some(doc)) => {
-                        let data: Data = bson::from_document(doc).unwrap();
-                        Ok(warp::reply::json(&data))
+                if let Some(_) = query.skip {
+                    let filter_options = mongodb::options::FindOptions::builder().skip(query.skip).limit(query.page_size).build();
+                    let filter = bson::doc! { "path": query.path };
+
+                    match db.collection("data").find(filter, filter_options).await {
+                        Ok(mut cursor) => {
+                            let mut results_vector = Vec::new();
+                            while let Some(item) = cursor.next().await {
+                                results_vector.push(item.unwrap())
+                            }
+                            Ok(warp::reply::json(&results_vector))
+                        },
+                        Err(e) => Err(warp::reject::reject()),
                     }
-                    Ok(None) => Err(warp::reject::custom(NotFound)),
-                    Err(e) => Err(warp::reject::reject()),
+                } else {
+                    let filter_options = mongodb::options::FindOneOptions::builder().build();
+                    let filter = bson::doc! { "path": query.path };
+
+                    match db.collection("data").find_one(filter, filter_options).await {
+                        Ok(Some(doc)) => {
+                            let data: Data = bson::from_document(doc).unwrap();
+                            Ok(warp::reply::json(&data))
+                        }
+                        Ok(None) => Err(warp::reject::custom(NotFound)),
+                        Err(e) => Err(warp::reject::reject()),
+                    }
                 }
+
+                
             })
             .recover(move |rejection: Rejection| async move {
                 let reply = warp::reply::reply();
