@@ -118,6 +118,8 @@ mod filters {
             .and_then(move |query: GetQuery, db: Database| async move {
 
                 if let Some(_) = query.skip {
+                    // If there is a skip query param, retrieve collection
+
                     let filter_options = mongodb::options::FindOptions::builder().skip(query.skip).limit(query.page_size).build();
                     let filter = bson::doc! { "path": query.path };
 
@@ -144,8 +146,6 @@ mod filters {
                         Err(e) => Err(warp::reject::reject()),
                     }
                 }
-
-                
             })
             .recover(move |rejection: Rejection| async move {
                 let reply = warp::reply::reply();
