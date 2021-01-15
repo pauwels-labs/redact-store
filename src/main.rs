@@ -72,12 +72,12 @@ mod filters {
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
+    use futures::StreamExt;
+
 
     #[derive(Serialize)]
-    struct GetResponse {
-        data_type: String,
-        path: String,
-        value: serde_json::Value,
+    struct GetCollectionResponse {
+        results: Vec<bson::Document>,
     }
 
     #[derive(Serialize)]
@@ -89,6 +89,8 @@ mod filters {
     #[derive(Serialize, Deserialize)]
     struct GetQuery {
         path: String,
+        skip: Option<i64>,
+        page_size: Option<i64>,
     }
 
     #[derive(Serialize, Deserialize, Debug)]
@@ -102,6 +104,10 @@ mod filters {
     struct NotFound;
     impl Reject for NotFound {}
 
+    #[derive(Debug)]
+    struct BadRequest;
+    impl Reject for BadRequest {}
+
     pub fn data(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         data_create(db.clone()).or(data_get(db.clone()))
         //data_create(db.clone()).or(data_get(db.clone()))
@@ -110,26 +116,59 @@ mod filters {
     pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         warp::path!("data")
             .and(warp::get())
-            .and(warp::query::<GetQuery>())
+            .and(warp::query::<GetQuery>().and_then(|query: GetQuery| async move {
+                if let Some(page_size) = query.page_size {
+                    if page_size > 100 {
+                        Err(warp::reject::custom(BadRequest))
+                    } else {
+                        Ok(query)
+                    }
+                } else {
+                    Ok(query)
+                }
+            }))
             .and(with_db(db))
             .and_then(move |query: GetQuery, db: Database| async move {
-                let filter_options = mongodb::options::FindOneOptions::builder().build();
-                let filter = bson::doc! { "path": query.path };
 
-                match db.collection("data").find_one(filter, filter_options).await {
-                    Ok(Some(doc)) => {
-                        let data: Data = bson::from_document(doc).unwrap();
-                        Ok(warp::reply::json(&data))
+                if let Some(_) = query.skip {
+                    // If there is a skip query param, retrieve collection
+
+                    let filter_options = mongodb::options::FindOptions::builder().skip(query.skip).limit(query.page_size).build();
+                    let filter = bson::doc! { "path": query.path };
+
+                    match db.collection("data").find(filter, filter_options).await {
+                        Ok(mut cursor) => {
+                            let mut results_vector = Vec::new();
+                            while let Some(item) = cursor.next().await {
+                                results_vector.push(item.unwrap());
+                            }
+                            Ok(warp::reply::json(&GetCollectionResponse {
+                                results: results_vector,
+                            }))
+                        },
+                        Err(e) => Err(warp::reject::reject()),
                     }
-                    Ok(None) => Err(warp::reject::custom(NotFound)),
-                    Err(e) => Err(warp::reject::reject()),
+                } else {
+                    let filter_options = mongodb::options::FindOneOptions::builder().build();
+                    let filter = bson::doc! { "path": query.path };
+
+                    match db.collection("data").find_one(filter, filter_options).await {
+                        Ok(Some(doc)) => {
+                            let data: Data = bson::from_document(doc).unwrap();
+                            Ok(warp::reply::json(&data))
+                        }
+                        Ok(None) => Err(warp::reject::custom(NotFound)),
+                        Err(e) => Err(warp::reject::reject()),
+                    }
                 }
             })
             .recover(move |rejection: Rejection| async move {
                 let reply = warp::reply::reply();
 
-                if let Some(NotFound) = rejection.find() {
+                if let Some(NotFound) = rejection.find::<NotFound>() {
                     Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+                } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
+                    Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
                 } else {
                     Ok(warp::reply::with_status(
                         reply,
