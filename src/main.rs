@@ -88,7 +88,6 @@ mod filters {
 
     #[derive(Serialize, Deserialize)]
     struct GetQuery {
-        path: String,
         skip: Option<i64>,
         page_size: Option<i64>,
     }
@@ -114,7 +113,10 @@ mod filters {
     }
 
     pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-        warp::path!("data")
+        warp::any()
+            .and(warp::path!("data" / String)
+                .map(|data_path| data_path)
+            )
             .and(warp::get())
             .and(warp::query::<GetQuery>().and_then(|query: GetQuery| async move {
                 if let Some(page_size) = query.page_size {
@@ -128,13 +130,13 @@ mod filters {
                 }
             }))
             .and(with_db(db))
-            .and_then(move |query: GetQuery, db: Database| async move {
+            .and_then(move |data_path: String, query: GetQuery, db: Database| async move {
 
                 if let Some(_) = query.skip {
                     // If there is a skip query param, retrieve collection
 
                     let filter_options = mongodb::options::FindOptions::builder().skip(query.skip).limit(query.page_size).build();
-                    let filter = bson::doc! { "path": query.path };
+                    let filter = bson::doc! { "path": data_path };
 
                     match db.collection("data").find(filter, filter_options).await {
                         Ok(mut cursor) => {
@@ -150,7 +152,7 @@ mod filters {
                     }
                 } else {
                     let filter_options = mongodb::options::FindOneOptions::builder().build();
-                    let filter = bson::doc! { "path": query.path };
+                    let filter = bson::doc! { "path": data_path };
 
                     match db.collection("data").find_one(filter, filter_options).await {
                         Ok(Some(doc)) => {
