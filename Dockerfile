@@ -34,7 +34,7 @@ USER notroot:notroot
 
 # Copy binary and static files
 WORKDIR /usr/local/bin
-COPY --from=builder /usr/src/service/target/release/service .
+COPY --from=builder /usr/src/service/target/release/redact-store service
 COPY --from=builder /usr/src/service/static ./static
 
 ENTRYPOINT ["service"]
