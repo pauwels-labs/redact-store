@@ -36,11 +36,17 @@ spec:
     http:
       paths:
       {{- $svcPort := .servicePort }}
-      {{- range .paths }}
+      {{- if gt (len .paths) 0 }}
+      {{- range .paths -}}
       - path: {{ . }}
         backend:
           serviceName: {{ $fullName }}
           servicePort: {{ $svcPort }}
       {{- end }}
+      {{- else -}}
+      - backend:
+          serviceName: {{ $fullName }}
+          servicePort: {{ $svcPort }}
+      {{- end -}}
   {{- end }}
 {{- end }}

@@ -35,12 +35,18 @@ spec:
   - host: {{ (include "parameterizedHost" (dict "Rule" . "Global" $)) | quote }}
     http:
       paths:
-      {{- $svcPort := .servicePort }}
-      {{- range .paths }}
+      {{ $svcPort := .servicePort }}
+      {{- if gt (len .paths) 0 }}
+      {{- range .paths -}}
       - path: {{ . }}
         backend:
           serviceName: {{ $fullName }}
           servicePort: {{ $svcPort }}
       {{- end }}
+      {{- else -}}
+      - backend:
+          serviceName: {{ $fullName }}
+          servicePort: {{ $svcPort }}
+      {{- end -}}
   {{- end }}
 {{- end }}
