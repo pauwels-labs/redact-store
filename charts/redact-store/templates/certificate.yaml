@@ -1,0 +1,34 @@
+{{- if .Values.ingress.cert.create -}}
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: {{ include "fullname" . }}
+  labels:
+  {{- include "labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "tlsSecretName" . }}
+  duration: 2160h # 90d
+  renewBefore: 360h # 15d
+  organization:
+  - Pauwels Labs
+  isCA: false
+  keySize: 2048
+  keyAlgorithm: rsa
+  keyEncoding: pkcs1
+  usages:
+  - server auth
+  - client auth
+  dnsNames:
+  {{- range .Values.ingress.hosts.global }}
+  - {{ (include "parameterizedHost" (dict "Rule" . "Global" $)) | quote }}
+  {{- end }}
+  {{- range .Values.ingress.additionalTLS }}
+    {{- range .hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  issuerRef:
+    name: {{ .Values.ingress.cert.issuer }}
+    kind: {{ .Values.ingress.cert.kind }}
+    group: cert-manager.io
+{{- end -}}

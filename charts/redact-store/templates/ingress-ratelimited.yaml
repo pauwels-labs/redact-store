@@ -7,10 +7,10 @@ apiVersion: extensions/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  name: {{ $fullName }}
+  name: {{ $fullName }}-ratelimited
   labels:
     {{- include "labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations.global }}
+  {{- with .Values.ingress.annotations.ratelimited }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -19,7 +19,7 @@ spec:
   tls:
   - secretName: {{ include "tlsSecretName" . }}
     hosts:
-    {{- range .Values.ingress.hosts.global }}
+    {{- range .Values.ingress.hosts.ratelimited }}
     - {{ (include "parameterizedHost" (dict "Rule" . "Global" $)) | quote }}
     {{- end }}
   {{- range .Values.ingress.additionalTLS }}
@@ -31,7 +31,7 @@ spec:
   {{- end }}
   {{- end }}
   rules:
-  {{- range .Values.ingress.hosts.global }}
+  {{- range .Values.ingress.hosts.ratelimited }}
   - host: {{ (include "parameterizedHost" (dict "Rule" . "Global" $)) | quote }}
     http:
       paths:

@@ -1,7 +1,7 @@
 FROM rust:alpine3.12 AS builder
 
 # Create an unprivileged user
-RUN adduser --disabled-password --no-create-home --uid 1000 notroot notroot
+RUN adduser --disabled-password --no-create-home --uid 1000 service service
 
 # Perform apk actions as root
 RUN apk add --no-cache musl-dev
@@ -18,19 +18,24 @@ RUN cargo build --release
 
 # Load source code to create final binary
 RUN rm -rf src
-RUN rm -rf target/release/deps/service*
+RUN rm -rf target/x86_64-unknown-linux-musl/release/deps/service
 COPY src src
 COPY static static
 RUN cargo build --release
 
-# Create tiny final image containing binary
-FROM scratch
+# Create alpine debug image
+# This should be scratch in prod
+FROM alpine:3.12
+
+# IMPORTANT: The following COPY and USER instructions are commented out in
+#            development images to allow the binary's runtime user to be
+#            root. This greatly simplifies in-container debugging.
 
 # Load unprivileged user from build container
-COPY --from=builder /etc/group /etc/passwd /etc/
+# COPY --from=builder /etc/group /etc/passwd /etc/
 
 # Switch to unprivileged user
-USER notroot:notroot
+# USER service:service
 
 # Copy binary and static files
 WORKDIR /usr/local/bin

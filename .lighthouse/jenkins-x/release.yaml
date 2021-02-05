@@ -26,8 +26,6 @@ spec:
           resources: {}
         - name: jx-variables
           resources: {}
-        - name: build-cargo-install
-          resources: {}
         - name: build-container-build
           resources: {}
         - name: promote-changelog
