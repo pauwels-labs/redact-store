@@ -26,8 +26,15 @@ spec:
           resources: {}
         - name: jx-variables
           resources: {}
-        - name: build-container-build
+        - image: gcr.io/kaniko-project/executor:debug-v1.3.0
+          name: build-container-build-cached
           resources: {}
+          script: |
+            #!/busybox/sh
+            source .jx/variables.sh
+            cp /tekton/creds-secrets/tekton-container-registry-auth/.dockerconfigjson /kaniko/.docker/config.json
+            mkdir /kaniko/cache
+            /kaniko/executor $KANIKO_FLAGS --context=/workspace/source --dockerfile=Dockerfile --destination=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME:$VERSION --cache=true --cache-dir=/kaniko/cache --cache-repo=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME/cache
         - name: promote-changelog
           resources: {}
         - name: promote-helm-release

@@ -18,9 +18,9 @@ RUN cargo build --release
 
 # Load source code to create final binary
 RUN rm -rf src
-RUN rm -rf target/x86_64-unknown-linux-musl/release/deps/service
+RUN ls -al target && ls -al target/release && ls -al target/release/deps
+RUN rm -rf target/release/deps/service
 COPY src src
-COPY static static
 RUN cargo build --release
 
 # Create alpine debug image
@@ -37,9 +37,8 @@ FROM alpine:3.12
 # Switch to unprivileged user
 # USER service:service
 
-# Copy binary and static files
+# Copy binary files
 WORKDIR /usr/local/bin
 COPY --from=builder /usr/src/service/target/release/redact-store service
-COPY --from=builder /usr/src/service/static ./static
 
 ENTRYPOINT ["service"]

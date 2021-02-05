@@ -20,7 +20,6 @@ RUN cargo build --release
 RUN rm -rf src
 RUN rm -rf target/release/deps/service*
 COPY src src
-COPY static static
 RUN cargo build --release
 
 # Create tiny final image containing binary
@@ -32,9 +31,8 @@ COPY --from=builder /etc/group /etc/passwd /etc/
 # Switch to unprivileged user
 USER notroot:notroot
 
-# Copy binary and static files
+# Copy binary files
 WORKDIR /usr/local/bin
 COPY --from=builder /usr/src/service/target/release/redact-store service
-COPY --from=builder /usr/src/service/static ./static
 
 ENTRYPOINT ["service"]
