@@ -28,9 +28,12 @@ spec:
           resources: {}
         - image: rust:1.49.0-alpine3.12
           name: unit-test
+          volumeMounts:
+          - name: coveralls-repo-tokens
+            mountPath: /coveralls
           resources: {}
           script: |
-            #!/busybox/sh
+            #!/bin/sh
             source .jx/variables.sh
             cargo install cargo-tarpaulin
             sleep 999999
@@ -50,6 +53,10 @@ spec:
           resources: {}
         - name: promote-jx-promote
           resources: {}
+        volumes:
+        - name: coveralls-repo-tokens
+          secret:
+            secretName: coveralls-repo-tokens
   podTemplate: {}
   serviceAccountName: tekton-bot
   timeout: 240h0m0s
