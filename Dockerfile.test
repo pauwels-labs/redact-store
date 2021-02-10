@@ -1,0 +1,31 @@
+FROM rust:alpine3.12 AS builder
+
+# This build-arg will be used by cargo-tarpaulin to upload code coverage reports to coveralls
+ARG REPO_TOKEN
+
+# Create an unprivileged user
+RUN adduser --disabled-password --no-create-home --uid 1000 service service
+
+# Perform apk actions as root
+RUN apk add --no-cache musl-dev
+
+# Create build directory as root
+WORKDIR /usr/src
+RUN USER=root cargo new service
+
+# Perform an initial compilation to cache dependencies
+WORKDIR /usr/src/service
+COPY Cargo.lock Cargo.toml ./
+RUN echo "fn main() {println!(\"if you see this, the image build failed and kept the depency-caching entrypoint. check your dockerfile and image build logs.\")}" > src/main.rs
+RUN cargo build --release
+
+# Tarpaulin provides code coverage reports
+RUN cargo install cargo-tarpaulin
+
+# Load source code to create final binary
+RUN rm -rf src
+RUN ls -al target && ls -al target/release && ls -al target/release/deps
+RUN rm -rf target/release/deps/service
+COPY src src
+RUN cargo build --release
+RUN cargo tarpaulin --coveralls $REPO_TOKEN
