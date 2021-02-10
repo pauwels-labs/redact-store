@@ -28,9 +28,6 @@ spec:
           resources: {}
         - image: rust:1.49.0-alpine3.12
           name: unit-test
-          volumeMounts:
-          - name: coveralls-repo-tokens
-            mountPath: /coveralls
           resources: {}
           script: |
             #!/busybox/sh
