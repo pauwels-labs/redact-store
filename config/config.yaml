@@ -1,0 +1,5 @@
+db:
+  url: ""
+  name: ""
+server:
+  port: 8081
