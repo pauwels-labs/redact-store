@@ -50,10 +50,6 @@ spec:
           resources: {}
         - name: promote-jx-promote
           resources: {}
-        volumes:
-        - name: coveralls-repo-tokens
-          secret:
-            secretName: coveralls-repo-tokens
   podTemplate: {}
   serviceAccountName: tekton-bot
   timeout: 240h0m0s
