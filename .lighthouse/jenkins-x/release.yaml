@@ -35,40 +35,11 @@ spec:
             cp /tekton/creds-secrets/tekton-container-registry-auth/.dockerconfigjson /kaniko/.docker/config.json
             mkdir /kaniko/cache
             /kaniko/executor $KANIKO_FLAGS --context=/workspace/source --dockerfile=Dockerfile --destination=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME:$VERSION --cache=true --cache-dir=/kaniko/cache --cache-repo=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME/cache
-            /kaniko/executor $KANIKO_FLAGS --context=/workspace/source --dockerfile=Dockerfile.dev --destination=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME:dev-$VERSION --cache=true --cache-dir=/kaniko/cache --cache-repo=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME/cache
-        - image: gcr.io/jenkinsxio/jx-changelog:0.0.32
-          name: promote-changelog
+            /kaniko/executor $KANIKO_FLAGS --context=/workspace/source --dockerfile=Dockerfile.dev --destination=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME:$VERSION-alpine3.12 --cache=true --cache-dir=/kaniko/cache --cache-repo=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME/cache
+        - name: promote-changelog
           resources: {}
-          script: |
-            #!/usr/bin/env sh
-            source .jx/variables.sh
-
-            if [ -d "charts/$REPO_NAME" ]; then
-            sed -i -e "s/repository:.*/repository: $DOCKER_REGISTRY\/$DOCKER_REGISTRY_ORG\/$APP_NAME/" ./charts/$REPO_NAME/values.yaml
-            else echo no charts; fi
-
-            # Publish development helm chart (final docker image based from alpine linux)
-            if [ -d "charts/$REPO_NAME" ]; then
-            sed -i -e "s/^version:.*/version: dev-$VERSION/" ./charts/$REPO_NAME/Chart.yaml
-            sed -i -e "s/tag:.*/tag: dev-$VERSION/" ./charts/$REPO_NAME/values.yaml;
-            else echo no charts; fi
-
-            jx gitops helm release
-
-            # Publish production helm chart (final docker image based from scratch linux)
-            # Also creates a git release at this version
-            if [ -d "charts/$REPO_NAME" ]; then
-            sed -i -e "s/^version:.*/version: $VERSION/" ./charts/$REPO_NAME/Chart.yaml
-            sed -i -e "s/tag:.*/tag: $VERSION/" ./charts/$REPO_NAME/values.yaml;
-            else echo no charts; fi
-
-            git add * || true
-            git commit -a -m "chore: release $VERSION" --allow-empty
-            git tag -fa v$VERSION -m "Release version $VERSION"
-            git push --force origin v$VERSION
-
-            jx changelog create --version v${VERSION}
-            jx gitops helm release
+        - name: promote-helm-release
+          resources: {}
         - name: promote-jx-promote
           resources: {}
   podTemplate: {}
