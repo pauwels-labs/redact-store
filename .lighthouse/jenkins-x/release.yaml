@@ -26,16 +26,17 @@ spec:
           resources: {}
         - name: jx-variables
           resources: {}
-        - image: rust:1.49.0-alpine3.12
+        - image: gcr.io/kaniko-project/executor:debug-v1.3.0
           name: unit-test
           volumeMounts:
           - name: coveralls-repo-tokens
             mountPath: /coveralls
           resources: {}
           script: |
-            #!/bin/sh
+            #!/busybox/sh
             source .jx/variables.sh
-            cargo install cargo-tarpaulin
+            cp /tekton/creds-secrets/tekton-container-registry-auth/.dockerconfigjson /kaniko/.docker/config.json
+            mkdir /kaniko/cache
             sleep 999999
         - image: gcr.io/kaniko-project/executor:debug-v1.3.0
           name: build-container-build-cached
