@@ -22,4 +22,4 @@ RUN rm -rf src
 RUN ls -al target && ls -al target/release && ls -al target/release/deps
 RUN rm -rf target/release/deps/service
 COPY src src
-RUN cargo tarpaulin 
+RUN cargo tarpaulin --coveralls $REPO_TOKEN
