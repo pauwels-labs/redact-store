@@ -15,7 +15,7 @@ RUN USER=root cargo new service
 WORKDIR /usr/src/service
 COPY Cargo.lock Cargo.toml ./
 RUN echo "fn main() {println!(\"if you see this, the image build failed and kept the depency-caching entrypoint. check your dockerfile and image build logs.\")}" > src/main.rs
-RUN cargo build --release
+RUN cargo tarpaulin
 
 # Load source code to create final binary
 RUN rm -rf src
