@@ -19,7 +19,10 @@ async fn main() {
     let port = match config.get_int("server.port") {
         Ok(port) => {
             if port < 1 || port > 65535 {
-                println!("listen port value '{}' is not between 1 and 65535", port);
+                println!(
+                    "listen port value '{}' is not between 1 and 65535, defaulting to 8080",
+                    port
+                );
                 8080 as u16
             } else {
                 port as u16
@@ -28,7 +31,9 @@ async fn main() {
         Err(e) => {
             match e {
                 // Suppress debug logging if server.port was simply not set
-                rust_config::ConfigError::NotFound(_) => (),
+                rust_config::ConfigError::NotFound(_) => {
+                    println!("listen port not set in config, defaulting to 8080")
+                }
                 _ => println!("{}", e),
             }
             8080 as u16
@@ -68,12 +73,11 @@ async fn main() {
 }
 
 mod filters {
+    use futures::StreamExt;
     use mongodb::Database;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
-    use futures::StreamExt;
-
 
     #[derive(Serialize)]
     struct GetCollectionResponse {
@@ -114,56 +118,60 @@ mod filters {
 
     pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         warp::any()
-            .and(warp::path!("data" / String)
-                .map(|data_path| data_path)
-            )
+            .and(warp::path!("data" / String).map(|data_path| data_path))
             .and(warp::get())
-            .and(warp::query::<GetQuery>().and_then(|query: GetQuery| async move {
-                if let Some(page_size) = query.page_size {
-                    if page_size > 100 {
-                        Err(warp::reject::custom(BadRequest))
+            .and(
+                warp::query::<GetQuery>().and_then(|query: GetQuery| async move {
+                    if let Some(page_size) = query.page_size {
+                        if page_size > 100 {
+                            Err(warp::reject::custom(BadRequest))
+                        } else {
+                            Ok(query)
+                        }
                     } else {
                         Ok(query)
                     }
-                } else {
-                    Ok(query)
-                }
-            }))
+                }),
+            )
             .and(with_db(db))
-            .and_then(move |data_path: String, query: GetQuery, db: Database| async move {
+            .and_then(
+                move |data_path: String, query: GetQuery, db: Database| async move {
+                    if let Some(_) = query.skip {
+                        // If there is a skip query param, retrieve collection
 
-                if let Some(_) = query.skip {
-                    // If there is a skip query param, retrieve collection
+                        let filter_options = mongodb::options::FindOptions::builder()
+                            .skip(query.skip)
+                            .limit(query.page_size)
+                            .build();
+                        let filter = bson::doc! { "path": data_path };
 
-                    let filter_options = mongodb::options::FindOptions::builder().skip(query.skip).limit(query.page_size).build();
-                    let filter = bson::doc! { "path": data_path };
-
-                    match db.collection("data").find(filter, filter_options).await {
-                        Ok(mut cursor) => {
-                            let mut results_vector = Vec::new();
-                            while let Some(item) = cursor.next().await {
-                                results_vector.push(item.unwrap());
+                        match db.collection("data").find(filter, filter_options).await {
+                            Ok(mut cursor) => {
+                                let mut results_vector = Vec::new();
+                                while let Some(item) = cursor.next().await {
+                                    results_vector.push(item.unwrap());
+                                }
+                                Ok(warp::reply::json(&GetCollectionResponse {
+                                    results: results_vector,
+                                }))
                             }
-                            Ok(warp::reply::json(&GetCollectionResponse {
-                                results: results_vector,
-                            }))
-                        },
-                        Err(e) => Err(warp::reject::reject()),
-                    }
-                } else {
-                    let filter_options = mongodb::options::FindOneOptions::builder().build();
-                    let filter = bson::doc! { "path": data_path };
-
-                    match db.collection("data").find_one(filter, filter_options).await {
-                        Ok(Some(doc)) => {
-                            let data: Data = bson::from_document(doc).unwrap();
-                            Ok(warp::reply::json(&data))
+                            Err(e) => Err(warp::reject::reject()),
                         }
-                        Ok(None) => Err(warp::reject::custom(NotFound)),
-                        Err(e) => Err(warp::reject::reject()),
+                    } else {
+                        let filter_options = mongodb::options::FindOneOptions::builder().build();
+                        let filter = bson::doc! { "path": data_path };
+
+                        match db.collection("data").find_one(filter, filter_options).await {
+                            Ok(Some(doc)) => {
+                                let data: Data = bson::from_document(doc).unwrap();
+                                Ok(warp::reply::json(&data))
+                            }
+                            Ok(None) => Err(warp::reject::custom(NotFound)),
+                            Err(e) => Err(warp::reject::reject()),
+                        }
                     }
-                }
-            })
+                },
+            )
             .recover(move |rejection: Rejection| async move {
                 let reply = warp::reply::reply();
 
