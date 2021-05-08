@@ -1,0 +1,1 @@
+{"source":{"Fs":{"path":"some/path"}},"executor":"SodiumOxide","is_symmetric":true,"alg":"salsa","encrypted_by":null,"name":"mykey"}

@@ -12,7 +12,7 @@ warp = "0.2"
 rust-config = { git = "https://github.com/ajpauwels/rust-config.git", rev = "f5d30659eba5cbcf57941414ddc79a19dfcf1110" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-mongodb = "1.1.1"
+mongodb = "1.2.1"
 bson = "1.1.0"
 futures = "0.3.8"
 pretty_env_logger = "0.4"

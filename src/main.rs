@@ -63,25 +63,31 @@ async fn main() {
 
     // Build out routes
     let health_route = warp::path!("healthz").map(|| warp::reply::json(&Healthz {}));
-    let data_routes = filters::data(db);
+    let get_routes =
+        warp::get().and(filters::keys_get(db.clone()).or(filters::data_get(db.clone())));
+    let post_routes =
+        warp::post().and(filters::keys_create(db.clone()).or(filters::data_create(db.clone())));
 
     // Start the server
     println!("starting server listening on ::{}", port);
-    let routes = health_route.or(data_routes).with(warp::log("routes"));
+    let routes = health_route
+        .or(get_routes)
+        .or(post_routes)
+        .with(warp::log("routes"));
 
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
 mod filters {
     use futures::StreamExt;
-    use mongodb::Database;
+    use mongodb::{bson, options::FindOneOptions, Database};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
     #[derive(Serialize)]
     struct GetCollectionResponse {
-        results: Vec<bson::Document>,
+        results: Vec<Data>,
     }
 
     #[derive(Serialize)]
@@ -103,6 +109,27 @@ mod filters {
         pub value: Value,
     }
 
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum KeySource {
+        Value { value: Vec<u8> },
+        Fs { path: String },
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub enum KeyExecutor {
+        SodiumOxide,
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Key {
+        pub source: KeySource,
+        pub executor: KeyExecutor,
+        pub is_symmetric: bool,
+        pub alg: String,
+        pub encrypted_by: Option<String>,
+        pub name: String,
+    }
+
     #[derive(Debug)]
     struct NotFound;
     impl Reject for NotFound {}
@@ -111,15 +138,73 @@ mod filters {
     struct BadRequest;
     impl Reject for BadRequest {}
 
-    pub fn data(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-        data_create(db.clone()).or(data_get(db.clone()))
-        //data_create(db.clone()).or(data_get(db.clone()))
+    pub fn keys_get(
+        db: Database,
+    ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+        warp::any()
+            .and(warp::path!("keys" / String).map(|key_name| key_name))
+            .and(with_db(db))
+            .and_then(move |key_name: String, db: Database| async move {
+                println!("here");
+                let filter_options = FindOneOptions::builder().build();
+                let filter = bson::doc! { "name": key_name };
+
+                match db
+                    .collection_with_type::<Key>("keys")
+                    .find_one(filter, filter_options)
+                    .await
+                {
+                    Ok(Some(key)) => Ok(warp::reply::json(&key)),
+                    Ok(None) => Err(warp::reject::custom(NotFound)),
+                    Err(e) => Err(warp::reject::reject()),
+                }
+            })
+            .recover(move |rejection: Rejection| async move {
+                let reply = warp::reply::reply();
+
+                if let Some(NotFound) = rejection.find::<NotFound>() {
+                    Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+                } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
+                    Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
+                } else {
+                    Ok(warp::reply::with_status(
+                        reply,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    ))
+                }
+            })
     }
 
-    pub fn data_get(db: Database) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    pub fn keys_create(
+        db: Database,
+    ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+        warp::any()
+            .and(warp::path!("keys"))
+            .and(warp::body::content_length_limit(1024 * 1024 * 250))
+            .and(warp::body::json::<Key>())
+            .and(with_db(db))
+            .and_then(move |contents: Key, db: Database| async move {
+                let insert_options = mongodb::options::InsertOneOptions::builder().build();
+
+                match db
+                    .collection_with_type::<Key>("keys")
+                    .insert_one(contents, insert_options)
+                    .await
+                {
+                    Ok(_) => Ok(warp::reply::json(&CreateResponse {
+                        success: true,
+                        msg: "inserted".to_string(),
+                    })),
+                    Err(_) => Err(warp::reject::reject()),
+                }
+            })
+    }
+
+    pub fn data_get(
+        db: Database,
+    ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
         warp::any()
             .and(warp::path!("data" / String).map(|data_path| data_path))
-            .and(warp::get())
             .and(
                 warp::query::<GetQuery>().and_then(|query: GetQuery| async move {
                     if let Some(page_size) = query.page_size {
@@ -145,7 +230,11 @@ mod filters {
                             .build();
                         let filter = bson::doc! { "path": data_path };
 
-                        match db.collection("data").find(filter, filter_options).await {
+                        match db
+                            .collection_with_type::<Data>("data")
+                            .find(filter, filter_options)
+                            .await
+                        {
                             Ok(mut cursor) => {
                                 let mut results_vector = Vec::new();
                                 while let Some(item) = cursor.next().await {
@@ -158,14 +247,15 @@ mod filters {
                             Err(e) => Err(warp::reject::reject()),
                         }
                     } else {
-                        let filter_options = mongodb::options::FindOneOptions::builder().build();
+                        let filter_options = FindOneOptions::builder().build();
                         let filter = bson::doc! { "path": data_path };
 
-                        match db.collection("data").find_one(filter, filter_options).await {
-                            Ok(Some(doc)) => {
-                                let data: Data = bson::from_document(doc).unwrap();
-                                Ok(warp::reply::json(&data))
-                            }
+                        match db
+                            .collection_with_type::<Data>("data")
+                            .find_one(filter, filter_options)
+                            .await
+                        {
+                            Ok(Some(data)) => Ok(warp::reply::json(&data)),
                             Ok(None) => Err(warp::reject::custom(NotFound)),
                             Err(e) => Err(warp::reject::reject()),
                         }
@@ -190,8 +280,9 @@ mod filters {
 
     pub fn data_create(
         db: Database,
-    ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-        warp::path!("data")
+    ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+        warp::any()
+            .and(warp::path!("data"))
             .and(warp::body::content_length_limit(1024 * 1024 * 250))
             .and(warp::body::json::<Data>())
             .and(with_db(db))
