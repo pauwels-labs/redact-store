@@ -1,1 +1,1 @@
-{"source":{"Fs":{"path":"some/path"}},"executor":"SodiumOxide","is_symmetric":true,"alg":"salsa","encrypted_by":null,"name":"mykey"}
+{"Asymmetric":{"Secret":{"SodiumOxide":{"source":{"Bytes":{"Fs": {"path":"keys/private/admin.key"}}},"alg":"curve25519xsalsa20poly1305","encrypted_by":null,"name":"admin"}}}}

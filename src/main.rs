@@ -81,6 +81,7 @@ async fn main() {
 mod filters {
     use futures::StreamExt;
     use mongodb::{bson, options::FindOneOptions, Database};
+    use redact_crypto::keys::Keys;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
@@ -109,27 +110,6 @@ mod filters {
         pub value: Value,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
-    pub enum KeySource {
-        Value { value: Vec<u8> },
-        Fs { path: String },
-    }
-
-    #[derive(Serialize, Deserialize, Debug)]
-    pub enum KeyExecutor {
-        SodiumOxide,
-    }
-
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct Key {
-        pub source: KeySource,
-        pub executor: KeyExecutor,
-        pub is_symmetric: bool,
-        pub alg: String,
-        pub encrypted_by: Option<String>,
-        pub name: String,
-    }
-
     #[derive(Debug)]
     struct NotFound;
     impl Reject for NotFound {}
@@ -150,7 +130,7 @@ mod filters {
                 let filter = bson::doc! { "name": key_name };
 
                 match db
-                    .collection_with_type::<Key>("keys")
+                    .collection_with_type::<Keys>("keys")
                     .find_one(filter, filter_options)
                     .await
                 {
@@ -181,13 +161,13 @@ mod filters {
         warp::any()
             .and(warp::path!("keys"))
             .and(warp::body::content_length_limit(1024 * 1024 * 250))
-            .and(warp::body::json::<Key>())
+            .and(warp::body::json::<Keys>())
             .and(with_db(db))
-            .and_then(move |contents: Key, db: Database| async move {
+            .and_then(move |contents: Keys, db: Database| async move {
                 let insert_options = mongodb::options::InsertOneOptions::builder().build();
 
                 match db
-                    .collection_with_type::<Key>("keys")
+                    .collection_with_type::<Keys>("keys")
                     .insert_one(contents, insert_options)
                     .await
                 {
