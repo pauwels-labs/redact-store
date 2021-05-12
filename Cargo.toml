@@ -16,4 +16,4 @@ mongodb = "1.2.1"
 bson = "1.1.0"
 futures = "0.3.8"
 pretty_env_logger = "0.4"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "e8fb2535d7eda4175392a69345a29dba6138348c" }
+redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "78af86daf5b244844a96b7a196ec8857d0b2b5a7" }

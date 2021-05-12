@@ -63,8 +63,11 @@ async fn main() {
 
     // Build out routes
     let health_route = warp::path!("healthz").map(|| warp::reply::json(&Healthz {}));
-    let get_routes =
-        warp::get().and(filters::keys_get(db.clone()).or(filters::data_get(db.clone())));
+    let get_routes = warp::get().and(
+        filters::keys_get(db.clone())
+            .or(filters::key_get(db.clone()))
+            .or(filters::data_get(db.clone())),
+    );
     let post_routes =
         warp::post().and(filters::keys_create(db.clone()).or(filters::data_create(db.clone())));
 
@@ -81,14 +84,17 @@ async fn main() {
 mod filters {
     use futures::StreamExt;
     use mongodb::{bson, options::FindOneOptions, Database};
-    use redact_crypto::keys::Keys;
+    use redact_crypto::{
+        key_sources::{BytesKeySources, FsBytesKeySource, KeySources},
+        keys::{AsymmetricKeys, Keys, SecretKeys, SodiumOxideSecretKey},
+    };
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
     #[derive(Serialize)]
-    struct GetCollectionResponse {
-        results: Vec<Data>,
+    struct GetCollectionResponse<T: Serialize> {
+        results: Vec<T>,
     }
 
     #[derive(Serialize)]
@@ -118,14 +124,13 @@ mod filters {
     struct BadRequest;
     impl Reject for BadRequest {}
 
-    pub fn keys_get(
+    pub fn key_get(
         db: Database,
     ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
         warp::any()
             .and(warp::path!("keys" / String).map(|key_name| key_name))
             .and(with_db(db))
             .and_then(move |key_name: String, db: Database| async move {
-                println!("here");
                 let filter_options = FindOneOptions::builder().build();
                 let filter = bson::doc! { "name": key_name };
 
@@ -137,6 +142,86 @@ mod filters {
                     Ok(Some(key)) => Ok(warp::reply::json(&key)),
                     Ok(None) => Err(warp::reject::custom(NotFound)),
                     Err(e) => Err(warp::reject::reject()),
+                }
+            })
+            .recover(move |rejection: Rejection| async move {
+                let reply = warp::reply::reply();
+
+                if let Some(NotFound) = rejection.find::<NotFound>() {
+                    Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+                } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
+                    Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
+                } else {
+                    Ok(warp::reply::with_status(
+                        reply,
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    ))
+                }
+            })
+    }
+
+    pub fn keys_get(
+        db: Database,
+    ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+        warp::any()
+            .and(warp::path!("keys"))
+            .and(with_db(db))
+            .and_then(move |db: Database| async move {
+                let filter_options = FindOneOptions::builder().build();
+                let filter = bson::doc! {};
+
+                match db
+                    .collection_with_type("keys")
+                    .find(filter, None)
+                    .await
+                {
+                    Ok(keys_cursor) => {
+                        let fsbks =
+                            FsBytesKeySource::new("keys/private/some.key").map_err(|e| {
+                                println!("181: {:?}", e);
+                                warp::reject::reject()
+                            })?;
+                        let sosk = SodiumOxideSecretKey::new(
+                            "test",
+                            KeySources::Bytes(BytesKeySources::Fs(fsbks)),
+                            "curve25519xsalsa20poly1305",
+                            None,
+                        )
+                        .map_err(|e| {
+                            println!("191: {:?}", e);
+                            warp::reject::reject()
+                        })?;
+                        let key =
+                            Keys::Asymmetric(AsymmetricKeys::Secret(SecretKeys::SodiumOxide(sosk)));
+                        println!("{:?}", serde_json::to_string(&key));
+			let key2: Keys = serde_json::from_str("{\"type\": \"Asymmetric\", \"Secret\":{\"SodiumOxide\":{\"source\":{\"Bytes\":{\"Fs\":{\"path\":\"keys/private/some.key\"}}},\"alg\":\"curve25519xsalsa20poly1305\",\"encrypted_by\":null,\"name\":\"test\"}}}").map_err(|e| {
+			    println!("198: here: {:?}", e);
+			    warp::reject::reject()
+			})?;
+
+                        Ok::<warp::reply::Json, Rejection>(warp::reply::json(
+                            &GetCollectionResponse {
+                                results: keys_cursor
+                                    .filter_map(|key_result| async move {
+                                        match key_result {
+                                            Ok(key) => {
+						Some(key)
+					    },
+                                            Err(e) => {
+						println!("209: {:?}", e);
+						None
+					    }
+                                        }
+                                    })
+                                    .collect::<Vec<Keys>>()
+                                    .await,
+                            },
+                        ))
+                    }
+                    Err(e) => {
+			println!("219: {:?}", e);
+			Err(warp::reject::reject())
+		    }
                 }
             })
             .recover(move |rejection: Rejection| async move {
