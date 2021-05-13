@@ -116,6 +116,11 @@ mod filters {
         pub value: Value,
     }
 
+    #[derive(Serialize, Deserialize, Debug)]
+    pub struct Key {
+        key: redact_crypto::keys::Keys,
+    }
+
     #[derive(Debug)]
     struct NotFound;
     impl Reject for NotFound {}
@@ -171,57 +176,24 @@ mod filters {
                 let filter = bson::doc! {};
 
                 match db
-                    .collection_with_type("keys")
+                    .collection_with_type::<Key>("keys")
                     .find(filter, None)
                     .await
                 {
-                    Ok(keys_cursor) => {
-                        let fsbks =
-                            FsBytesKeySource::new("keys/private/some.key").map_err(|e| {
-                                println!("181: {:?}", e);
-                                warp::reject::reject()
-                            })?;
-                        let sosk = SodiumOxideSecretKey::new(
-                            "test",
-                            KeySources::Bytes(BytesKeySources::Fs(fsbks)),
-                            "curve25519xsalsa20poly1305",
-                            None,
-                        )
-                        .map_err(|e| {
-                            println!("191: {:?}", e);
-                            warp::reject::reject()
-                        })?;
-                        let key =
-                            Keys::Asymmetric(AsymmetricKeys::Secret(SecretKeys::SodiumOxide(sosk)));
-                        println!("{:?}", serde_json::to_string(&key));
-			let key2: Keys = serde_json::from_str("{\"type\": \"Asymmetric\", \"Secret\":{\"SodiumOxide\":{\"source\":{\"Bytes\":{\"Fs\":{\"path\":\"keys/private/some.key\"}}},\"alg\":\"curve25519xsalsa20poly1305\",\"encrypted_by\":null,\"name\":\"test\"}}}").map_err(|e| {
-			    println!("198: here: {:?}", e);
-			    warp::reject::reject()
-			})?;
-
-                        Ok::<warp::reply::Json, Rejection>(warp::reply::json(
-                            &GetCollectionResponse {
-                                results: keys_cursor
-                                    .filter_map(|key_result| async move {
-                                        match key_result {
-                                            Ok(key) => {
-						Some(key)
-					    },
-                                            Err(e) => {
-						println!("209: {:?}", e);
-						None
-					    }
-                                        }
-                                    })
-                                    .collect::<Vec<Keys>>()
-                                    .await,
-                            },
-                        ))
-                    }
-                    Err(e) => {
-			println!("219: {:?}", e);
-			Err(warp::reject::reject())
-		    }
+                    Ok(keys_cursor) => Ok::<warp::reply::Json, Rejection>(warp::reply::json(
+                        &GetCollectionResponse {
+                            results: keys_cursor
+                                .filter_map(|key_result| async move {
+                                    match key_result {
+                                        Ok(key) => Some(key.key),
+                                        Err(e) => None,
+                                    }
+                                })
+                                .collect::<Vec<Keys>>()
+                                .await,
+                        },
+                    )),
+                    Err(e) => Err(warp::reject::reject()),
                 }
             })
             .recover(move |rejection: Rejection| async move {
