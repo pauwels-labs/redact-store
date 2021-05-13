@@ -63,13 +63,15 @@ async fn main() {
 
     // Build out routes
     let health_route = warp::path!("healthz").map(|| warp::reply::json(&Healthz {}));
-    let get_routes = warp::get().and(
-        filters::keys_get(db.clone())
-            .or(filters::key_get(db.clone()))
-            .or(filters::data_get(db.clone())),
-    );
-    let post_routes =
-        warp::post().and(filters::keys_create(db.clone()).or(filters::data_create(db.clone())));
+
+    let keys_get_routes =
+        warp::path("keys").and(filters::key_get(db.clone()).or(filters::keys_get(db.clone())));
+    let keys_post_routes = warp::path("keys").and(filters::key_create(db.clone()));
+    let data_get_routes = warp::path("data").and(filters::data_get(db.clone()));
+    let data_post_routes = warp::path("data").and(filters::data_create(db.clone()));
+
+    let get_routes = warp::get().and(keys_get_routes.or(data_get_routes));
+    let post_routes = warp::post().and(keys_post_routes.or(data_post_routes));
 
     // Start the server
     println!("starting server listening on ::{}", port);
@@ -84,13 +86,10 @@ async fn main() {
 mod filters {
     use futures::StreamExt;
     use mongodb::{bson, options::FindOneOptions, Database};
-    use redact_crypto::{
-        key_sources::{BytesKeySources, FsBytesKeySource, KeySources},
-        keys::{AsymmetricKeys, Keys, SecretKeys, SodiumOxideSecretKey},
-    };
+    use redact_crypto::keys::Key;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
-    use warp::{http::StatusCode, reject::Reject, Filter, Rejection, Reply};
+    use warp::{reject::Reject, Filter, Rejection, Reply};
 
     #[derive(Serialize)]
     struct GetCollectionResponse<T: Serialize> {
@@ -116,11 +115,6 @@ mod filters {
         pub value: Value,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct Key {
-        key: redact_crypto::keys::Keys,
-    }
-
     #[derive(Debug)]
     struct NotFound;
     impl Reject for NotFound {}
@@ -132,52 +126,50 @@ mod filters {
     pub fn key_get(
         db: Database,
     ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-        warp::any()
-            .and(warp::path!("keys" / String).map(|key_name| key_name))
+        warp::path!(String)
+            .map(|key_name| key_name)
             .and(with_db(db))
             .and_then(move |key_name: String, db: Database| async move {
-                let filter_options = FindOneOptions::builder().build();
                 let filter = bson::doc! { "name": key_name };
 
                 match db
-                    .collection_with_type::<Keys>("keys")
-                    .find_one(filter, filter_options)
+                    .collection_with_type::<Key>("keys")
+                    .find_one(filter, None)
                     .await
                 {
                     Ok(Some(key)) => Ok(warp::reply::json(&key)),
                     Ok(None) => Err(warp::reject::custom(NotFound)),
-                    Err(e) => Err(warp::reject::reject()),
+                    Err(e) => {
+                        println!("{:?}", e);
+                        Err(warp::reject::reject())
+                    }
                 }
             })
-            .recover(move |rejection: Rejection| async move {
-                let reply = warp::reply::reply();
+        // .recover(move |rejection: Rejection| async move {
+        //     let reply = warp::reply::reply();
 
-                if let Some(NotFound) = rejection.find::<NotFound>() {
-                    Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
-                } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
-                    Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
-                } else {
-                    Ok(warp::reply::with_status(
-                        reply,
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    ))
-                }
-            })
+        //     if let Some(NotFound) = rejection.find::<NotFound>() {
+        //         Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+        //     } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
+        //         Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
+        //     } else {
+        //         Ok(warp::reply::with_status(
+        //             reply,
+        //             StatusCode::INTERNAL_SERVER_ERROR,
+        //         ))
+        //     }
+        // })
     }
 
     pub fn keys_get(
         db: Database,
     ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-        warp::any()
-            .and(warp::path!("keys"))
+        warp::path::end()
             .and(with_db(db))
             .and_then(move |db: Database| async move {
-                let filter_options = FindOneOptions::builder().build();
-                let filter = bson::doc! {};
-
                 match db
                     .collection_with_type::<Key>("keys")
-                    .find(filter, None)
+                    .find(None, None)
                     .await
                 {
                     Ok(keys_cursor) => Ok::<warp::reply::Json, Rejection>(warp::reply::json(
@@ -185,46 +177,51 @@ mod filters {
                             results: keys_cursor
                                 .filter_map(|key_result| async move {
                                     match key_result {
-                                        Ok(key) => Some(key.key),
-                                        Err(e) => None,
+                                        Ok(key) => Some(key),
+                                        Err(e) => {
+                                            println!("{:?}", e);
+                                            None
+                                        }
                                     }
                                 })
-                                .collect::<Vec<Keys>>()
+                                .collect::<Vec<Key>>()
                                 .await,
                         },
                     )),
-                    Err(e) => Err(warp::reject::reject()),
+                    Err(e) => {
+                        println!("{:?}", e);
+                        Err(warp::reject::reject())
+                    }
                 }
             })
-            .recover(move |rejection: Rejection| async move {
-                let reply = warp::reply::reply();
+        // .recover(move |rejection: Rejection| async move {
+        //     let reply = warp::reply::reply();
 
-                if let Some(NotFound) = rejection.find::<NotFound>() {
-                    Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
-                } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
-                    Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
-                } else {
-                    Ok(warp::reply::with_status(
-                        reply,
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    ))
-                }
-            })
+        //     if let Some(NotFound) = rejection.find::<NotFound>() {
+        //         Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+        //     } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
+        //         Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
+        //     } else {
+        //         Ok(warp::reply::with_status(
+        //             reply,
+        //             StatusCode::INTERNAL_SERVER_ERROR,
+        //         ))
+        //     }
+        // })
     }
 
-    pub fn keys_create(
+    pub fn key_create(
         db: Database,
     ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-        warp::any()
-            .and(warp::path!("keys"))
+        warp::path!("keys")
             .and(warp::body::content_length_limit(1024 * 1024 * 250))
-            .and(warp::body::json::<Keys>())
+            .and(warp::body::json::<Key>())
             .and(with_db(db))
-            .and_then(move |contents: Keys, db: Database| async move {
+            .and_then(move |contents: Key, db: Database| async move {
                 let insert_options = mongodb::options::InsertOneOptions::builder().build();
 
                 match db
-                    .collection_with_type::<Keys>("keys")
+                    .collection_with_type::<Key>("keys")
                     .insert_one(contents, insert_options)
                     .await
                 {
@@ -240,8 +237,8 @@ mod filters {
     pub fn data_get(
         db: Database,
     ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-        warp::any()
-            .and(warp::path!("data" / String).map(|data_path| data_path))
+        warp::path!("data" / String)
+            .map(|data_path| data_path)
             .and(
                 warp::query::<GetQuery>().and_then(|query: GetQuery| async move {
                     if let Some(page_size) = query.page_size {
@@ -299,27 +296,26 @@ mod filters {
                     }
                 },
             )
-            .recover(move |rejection: Rejection| async move {
-                let reply = warp::reply::reply();
+        // .recover(move |rejection: Rejection| async move {
+        //     let reply = warp::reply::reply();
 
-                if let Some(NotFound) = rejection.find::<NotFound>() {
-                    Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
-                } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
-                    Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
-                } else {
-                    Ok(warp::reply::with_status(
-                        reply,
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                    ))
-                }
-            })
+        //     if let Some(NotFound) = rejection.find::<NotFound>() {
+        //         Ok(warp::reply::with_status(reply, StatusCode::NOT_FOUND))
+        //     } else if let Some(BadRequest) = rejection.find::<BadRequest>() {
+        //         Ok(warp::reply::with_status(reply, StatusCode::BAD_REQUEST))
+        //     } else {
+        //         Ok(warp::reply::with_status(
+        //             reply,
+        //             StatusCode::INTERNAL_SERVER_ERROR,
+        //         ))
+        //     }
+        // })
     }
 
     pub fn data_create(
         db: Database,
     ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-        warp::any()
-            .and(warp::path!("data"))
+        warp::path!("data")
             .and(warp::body::content_length_limit(1024 * 1024 * 250))
             .and(warp::body::json::<Data>())
             .and(with_db(db))
