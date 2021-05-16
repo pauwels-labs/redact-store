@@ -1,5 +1,5 @@
-use crate::routes::error::{BadRequestRejection, StorageErrorRejection};
-use crate::storage::DataStorer;
+use crate::routes::error::{BadRequestRejection, DataStorageErrorRejection};
+use redact_data::DataStorer;
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Rejection, Reply};
 
@@ -45,7 +45,7 @@ pub fn get<T: DataStorer>(
                     let data_coll = data_storer
                         .get_collection(&data_path, skip, page_size)
                         .await
-                        .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
+                        .map_err(|e| warp::reject::custom(DataStorageErrorRejection(e)))?;
                     Ok::<_, Rejection>(warp::reply::json(&GetCollectionResponse {
                         results: data_coll.data,
                     }))
@@ -53,7 +53,7 @@ pub fn get<T: DataStorer>(
                     let data = data_storer
                         .get(&data_path)
                         .await
-                        .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
+                        .map_err(|e| warp::reject::custom(DataStorageErrorRejection(e)))?;
                     Ok::<_, Rejection>(warp::reply::json(&data))
                 }
             },

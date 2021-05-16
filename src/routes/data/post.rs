@@ -1,7 +1,5 @@
-use crate::{
-    routes::error::StorageErrorRejection,
-    storage::data::{Data, DataStorer},
-};
+use crate::routes::error::DataStorageErrorRejection;
+use redact_data::{Data, DataStorer};
 use serde::Serialize;
 use warp::{Filter, Rejection, Reply};
 
@@ -22,7 +20,7 @@ pub fn create<T: DataStorer>(
             let success = data_storer
                 .create(data)
                 .await
-                .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
+                .map_err(|e| warp::reject::custom(DataStorageErrorRejection(e)))?;
 
             Ok::<_, Rejection>(warp::reply::json(&CreateResponse {
                 success,

@@ -1,5 +1,5 @@
-use crate::routes::error::StorageErrorRejection;
-use crate::storage::keys::KeyStorer;
+use crate::routes::error::KeyStorageErrorRejection;
+use redact_crypto::KeyStorer;
 use serde::Serialize;
 use warp::{Filter, Rejection, Reply};
 
@@ -13,7 +13,7 @@ pub fn get<T: KeyStorer>(
             let key = key_storer
                 .get(&key_name)
                 .await
-                .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
+                .map_err(|e| warp::reject::custom(KeyStorageErrorRejection(e)))?;
             Ok::<_, Rejection>(warp::reply::json(&key))
         })
 }
@@ -32,7 +32,7 @@ pub fn list<T: KeyStorer>(
             let key_list = key_storer
                 .list()
                 .await
-                .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
+                .map_err(|e| warp::reject::custom(KeyStorageErrorRejection(e)))?;
 
             Ok::<_, Rejection>(warp::reply::json(&ListResponse {
                 results: key_list.results,

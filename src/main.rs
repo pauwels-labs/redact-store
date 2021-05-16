@@ -1,10 +1,10 @@
 mod routes;
-mod storage;
 mod traverse;
 
+use redact_crypto::MongoKeyStorer;
+use redact_data::MongoDataStorer;
 use rust_config::Configurator;
 use serde::Serialize;
-use storage::{data::mongodb::MongoDataStorer, keys::mongodb::MongoKeyStorer};
 use warp::Filter;
 
 #[derive(Serialize)]

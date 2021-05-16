@@ -1457,10 +1457,25 @@ dependencies = [
 [[package]]
 name = "redact-crypto"
 version = "0.1.0"
-source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=87bb6c9a379e1e1efebc3c26ef74ba30d8b62a8c#87bb6c9a379e1e1efebc3c26ef74ba30d8b62a8c"
+source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=bac538ee432422a24e225abe65f1c7253093770f#bac538ee432422a24e225abe65f1c7253093770f"
 dependencies = [
+ "async-trait",
+ "futures",
+ "mongodb",
  "serde 1.0.125",
  "sodiumoxide",
+]
+
+[[package]]
+name = "redact-data"
+version = "0.1.0"
+source = "git+https://github.com/pauwels-labs/redact-data.git?rev=4a051d0187bf74dbcfc4908358f1af2b2ced719e#4a051d0187bf74dbcfc4908358f1af2b2ced719e"
+dependencies = [
+ "async-trait",
+ "futures",
+ "mongodb",
+ "serde 1.0.125",
+ "serde_json",
 ]
 
 [[package]]
@@ -1474,6 +1489,7 @@ dependencies = [
  "mongodb",
  "pretty_env_logger",
  "redact-crypto",
+ "redact-data",
  "rust-config",
  "serde 1.0.125",
  "serde_json",
