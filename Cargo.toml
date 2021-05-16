@@ -16,7 +16,7 @@ mongodb = "1.2.1"
 bson = "1.1.0"
 futures = "0.3.8"
 pretty_env_logger = "0.4"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "bac538ee432422a24e225abe65f1c7253093770f" }
-redact-data = { git = "https://github.com/pauwels-labs/redact-data.git", rev = "4a051d0187bf74dbcfc4908358f1af2b2ced719e" }
+redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "3d826fb7c17acdfe06c442a80da0de3a2805d18f" }
+redact-data = { git = "https://github.com/pauwels-labs/redact-data.git", rev = "ec6bfbc176914cf0397313d0ecb60e027ca04059" }
 async-trait = "0.1.42"
 async-recursion = "0.3.2"
