@@ -17,6 +17,6 @@ bson = "1.1.0"
 futures = "0.3.8"
 pretty_env_logger = "0.4"
 redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "3d826fb7c17acdfe06c442a80da0de3a2805d18f" }
-redact-data = { git = "https://github.com/pauwels-labs/redact-data.git", rev = "ec6bfbc176914cf0397313d0ecb60e027ca04059" }
+redact-data = { git = "https://github.com/pauwels-labs/redact-data.git", rev = "19a35a418d6886283c8a1be968e6d3f0130faa88" }
 async-trait = "0.1.42"
 async-recursion = "0.3.2"
