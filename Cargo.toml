@@ -3,6 +3,25 @@ name = "redact-store"
 version = "0.1.0"
 authors = ["ajp <8890201+ajpauwels@users.noreply.github.com>"]
 edition = "2018"
+license-file = "LICENSE"
+description = "Provides a common interface on top of storage backings"
+documentation = "https://docs.rs/redact-store"
+repository = "https://github.com/pauwels-labs/redact-store.git"
+readme = "README.md"
+exclude = [
+        ".dockerignore",
+        ".git",
+        ".gitignore",
+        ".lighthouse",
+        "charts"
+        "preview"
+        "Dockerfilest",
+        "Dockerfilest.dev",
+        "Dockerfilest.test",
+        "OWNERS",
+        "OWNERS_ALIASES",
+        "tarpaulin-report.html"
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,6 +36,6 @@ bson = "1.1.0"
 futures = "0.3.8"
 pretty_env_logger = "0.4"
 redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "3d826fb7c17acdfe06c442a80da0de3a2805d18f" }
-redact-data = { git = "https://github.com/pauwels-labs/redact-data.git", rev = "19a35a418d6886283c8a1be968e6d3f0130faa88" }
+redact-data = { git = "https://github.com/pauwels-labs/redact-data.git", rev = "a93a08949b32670562c6e8e075c14b39ab3581c2" }
 async-trait = "0.1.42"
 async-recursion = "0.3.2"
