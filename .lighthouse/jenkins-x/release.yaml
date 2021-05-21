@@ -1,4 +1,4 @@
-apiVersion: tekton.dev/v1beta1
+XapiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
   creationTimestamp: null
@@ -19,9 +19,24 @@ spec:
               memory: 512Mi
           workingDir: /workspace/source
         steps:
-        - image: uses:jenkins-x/jx3-pipeline-catalog/tasks/git-clone/git-clone.yaml@versionStream
-          name: ""
-          resources: {}
+        # - image: uses:jenkins-x/jx3-pipeline-catalog/tasks/git-clone/git-clone.yaml@versionStream
+        #   name: ""
+        #   resources: {}
+        - script: |
+            #!/bin/sh
+            export SUBDIR="source"
+            echo "git cloning url: $REPO_URL version $PULL_BASE_REF@$PULL_BASE_SHA to dir: $SUBDIR"
+            git config --global --add user.name ${GIT_AUTHOR_NAME:-jenkins-x-bot}
+            git config --global --add user.email ${GIT_AUTHOR_EMAIL:-jenkins-x@googlegroups.com}
+            git config --global credential.helper store
+            git clone $REPO_URL $SUBDIR
+            cd $SUBDIR
+            git reset --hard $PULL_BASE_SHA
+            echo "checked out revision: $PULL_BASE_REF@$PULL_BASE_SHA to dir: $SUBDIR"
+          image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.19.0
+          name: git-clone
+          resources: { }
+          workingDir: /workspace
         - name: next-version
           resources: {}
         - name: jx-variables
@@ -37,9 +52,12 @@ spec:
             source .jx/variables.sh
             cp /tekton/creds-secrets/tekton-container-registry-auth/.dockerconfigjson /kaniko/.docker/config.json
             mkdir /kaniko/cache
+            # Write a random value to a file named "bust" here to force the test Dockerfile
+            # to re-run tests and code coverage without breaking the dependency and build cache
+            head -c 32 /dev/random > bust
             /kaniko/executor $KANIKO_FLAGS --context=/workspace/source --dockerfile=Dockerfile.test --no-push --cache=true --cache-dir=/kaniko/cache --cache-repo=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME/cache --build-arg REPO_TOKEN=$(cat /coveralls/$APP_NAME)
         - image: gcr.io/kaniko-project/executor:debug-v1.3.0
-          name: build-container-build-cached
+          name: build-prod-container
           resources: {}
           script: |
             #!/busybox/sh
@@ -47,9 +65,36 @@ spec:
             cp /tekton/creds-secrets/tekton-container-registry-auth/.dockerconfigjson /kaniko/.docker/config.json
             mkdir /kaniko/cache
             /kaniko/executor $KANIKO_FLAGS --context=/workspace/source --dockerfile=Dockerfile --destination=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME:$VERSION --cache=true --cache-dir=/kaniko/cache --cache-repo=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME/cache
+        - image: gcr.io/kaniko-project/executor:debug-v1.3.0
+          name: build-alpine-container
+          resources: {}
+          script: |
+            #!/busybox/sh
+            source .jx/variables.sh
+            cp /tekton/creds-secrets/tekton-container-registry-auth/.dockerconfigjson /kaniko/.docker/config.json
+            mkdir /kaniko/cache
             /kaniko/executor $KANIKO_FLAGS --context=/workspace/source --dockerfile=Dockerfile.dev --destination=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME:$VERSION-alpine3.13 --cache=true --cache-dir=/kaniko/cache --cache-repo=$DOCKER_REGISTRY/$DOCKER_REGISTRY_ORG/$APP_NAME/cache
+        - image: 274295908850.dkr.ecr.eu-west-1.amazonaws.com/pauwels-labs/toml-editor:0.1.0
+          name: cargo-toml-version-update
+          resources: {}
+          script: |
+            #!/bin/sh
+            source .jx/variables.sh
+            # When you write directly to Cargo.toml, it weirdly appends to the file
+            toml set Cargo.toml package.version "$VERSION" > Cargo.toml.new
+            mv Cargo.toml.new Cargo.toml
         - name: promote-changelog
           resources: {}
+        - image: 274295908850.dkr.ecr.eu-west-1.amazonaws.com/pauwels-labs/toml-editor:0.1.0
+          name: cargo-publish
+          volumeMounts:
+          - name: crates-io-token
+            mountPath: /usr/local/cargo/credentials
+            subPath: credentials
+          resources: {}
+          script: |
+            #!/bin/sh
+            cargo publish
         - name: promote-helm-release
           resources: {}
         - name: promote-jx-promote
@@ -58,6 +103,9 @@ spec:
         - name: coveralls-repo-tokens
           secret:
             secretName: coveralls-repo-tokens
+        - name: crates-io-token
+          secret:
+            secretName: crates-io-token
   podTemplate: {}
   serviceAccountName: tekton-bot
   timeout: 240h0m0s
