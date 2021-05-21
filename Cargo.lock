@@ -1737,11 +1737,13 @@ dependencies = [
 
 [[package]]
 name = "redact-crypto"
-version = "0.1.0"
-source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=3d826fb7c17acdfe06c442a80da0de3a2805d18f#3d826fb7c17acdfe06c442a80da0de3a2805d18f"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4050b80570578012f61e4d10743e766be470425bef6ea751aded0e5db84e20f4"
 dependencies = [
  "async-trait",
  "futures",
+ "mockall",
  "mongodb",
  "reqwest 0.11.3",
  "serde 1.0.125",
@@ -1751,7 +1753,8 @@ dependencies = [
 [[package]]
 name = "redact-data"
 version = "0.1.0"
-source = "git+https://github.com/pauwels-labs/redact-data.git?rev=a93a08949b32670562c6e8e075c14b39ab3581c2#a93a08949b32670562c6e8e075c14b39ab3581c2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de0047f04d71ddc95fbeaadbfacf9cb4db3dc62fc1e984beb16c117bfd1c3522"
 dependencies = [
  "async-trait",
  "futures",
