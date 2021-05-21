@@ -13,8 +13,8 @@ exclude = [
         ".git",
         ".gitignore",
         ".lighthouse",
-        "charts"
-        "preview"
+        "charts",
+        "preview",
         "Dockerfilest",
         "Dockerfilest.dev",
         "Dockerfilest.test",
