@@ -1737,9 +1737,9 @@ dependencies = [
 
 [[package]]
 name = "redact-crypto"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4050b80570578012f61e4d10743e766be470425bef6ea751aded0e5db84e20f4"
+checksum = "9b37d4e73b9b6900a17e0e77349068e828dc468cc45b3de9be2a4d347b89f6ad"
 dependencies = [
  "async-trait",
  "futures",
@@ -1752,9 +1752,9 @@ dependencies = [
 
 [[package]]
 name = "redact-data"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de0047f04d71ddc95fbeaadbfacf9cb4db3dc62fc1e984beb16c117bfd1c3522"
+checksum = "a947abe29eb6328708151f0e9b2805113210cd3b6477c09dbc47ef78eed8cbcc"
 dependencies = [
  "async-trait",
  "futures",

@@ -47,7 +47,7 @@ pub fn get<T: DataStorer>(
                         .await
                         .map_err(|e| warp::reject::custom(DataStorageErrorRejection(e)))?;
                     Ok::<_, Rejection>(warp::reply::json(&GetCollectionResponse {
-                        results: data_coll.data,
+                        results: data_coll.0,
                     }))
                 } else {
                     let data = data_storer
