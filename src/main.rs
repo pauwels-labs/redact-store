@@ -3,7 +3,7 @@ mod traverse;
 
 use redact_crypto::MongoKeyStorer;
 use redact_data::MongoDataStorer;
-use rust_config::Configurator;
+use redact_config::Configurator;
 use serde::Serialize;
 use warp::Filter;
 
@@ -15,7 +15,7 @@ async fn main() {
     pretty_env_logger::init();
 
     // Extract config with a REDACT_ env var prefix
-    let config = rust_config::new("REDACT").unwrap();
+    let config = redact_config::new("REDACT").unwrap();
 
     // Determine port to listen on
     let port = match config.get_int("server.port") {
@@ -33,7 +33,7 @@ async fn main() {
         Err(e) => {
             match e {
                 // Suppress debug logging if server.port was simply not set
-                rust_config::ConfigError::NotFound(_) => {
+                redact_config::ConfigError::NotFound(_) => {
                     println!("listen port not set in config, defaulting to 8080")
                 }
                 _ => println!("{}", e),
