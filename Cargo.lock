@@ -1737,32 +1737,19 @@ dependencies = [
 
 [[package]]
 name = "redact-crypto"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b37d4e73b9b6900a17e0e77349068e828dc468cc45b3de9be2a4d347b89f6ad"
+version = "0.1.0"
+source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=7ad182d9189740bdc67a5812f55b71ce8ae9ef36#7ad182d9189740bdc67a5812f55b71ce8ae9ef36"
 dependencies = [
  "async-trait",
  "futures",
- "mockall",
- "mongodb",
- "reqwest 0.11.3",
- "serde 1.0.125",
- "sodiumoxide",
-]
-
-[[package]]
-name = "redact-data"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a947abe29eb6328708151f0e9b2805113210cd3b6477c09dbc47ef78eed8cbcc"
-dependencies = [
- "async-trait",
- "futures",
+ "hex",
  "mockall",
  "mongodb",
  "reqwest 0.11.3",
  "serde 1.0.125",
  "serde_json",
+ "sodiumoxide",
+ "uuid",
 ]
 
 [[package]]
@@ -1776,7 +1763,6 @@ dependencies = [
  "mongodb",
  "pretty_env_logger",
  "redact-crypto",
- "redact-data",
  "rust-config",
  "serde 1.0.125",
  "serde_json",
@@ -2700,6 +2686,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fde2f6a4bea1d6e007c4ad38c6839fa71cbb63b6dbf5b595aa38dc9b1093c11"
 dependencies = [
  "rand 0.7.3",
+ "serde 1.0.125",
 ]
 
 [[package]]

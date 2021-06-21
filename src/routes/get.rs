@@ -1,5 +1,5 @@
-use crate::routes::error::{BadRequestRejection, DataStorageErrorRejection};
-use redact_data::DataStorer;
+use crate::routes::error::{BadRequestRejection, StorageErrorRejection};
+use redact_crypto::{Storer, Type};
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Rejection, Reply};
 
@@ -14,8 +14,8 @@ struct GetCollectionResponse<T: Serialize> {
     results: Vec<T>,
 }
 
-pub fn get<T: DataStorer>(
-    data_storer: T,
+pub fn get<T: Storer>(
+    storer: T,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!(String)
         .map(|data_path| data_path)
@@ -32,9 +32,9 @@ pub fn get<T: DataStorer>(
                 }
             }),
         )
-        .and(warp::any().map(move || data_storer.clone()))
+        .and(warp::any().map(move || storer.clone()))
         .and_then(
-            move |data_path: String, query: GetQueryParams, data_storer: T| async move {
+            move |data_path: String, query: GetQueryParams, storer: T| async move {
                 if let Some(skip) = query.skip {
                     let page_size = if let Some(page_size) = query.page_size {
                         page_size
@@ -42,18 +42,16 @@ pub fn get<T: DataStorer>(
                         10
                     };
 
-                    let data_coll = data_storer
-                        .get_collection(&data_path, skip, page_size)
+                    let results = storer
+                        .list::<Type>(&data_path, skip, page_size)
                         .await
-                        .map_err(|e| warp::reject::custom(DataStorageErrorRejection(e)))?;
-                    Ok::<_, Rejection>(warp::reply::json(&GetCollectionResponse {
-                        results: data_coll.0,
-                    }))
+                        .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
+                    Ok::<_, Rejection>(warp::reply::json(&GetCollectionResponse { results }))
                 } else {
-                    let data = data_storer
-                        .get(&data_path)
+                    let data = storer
+                        .get::<Type>(&data_path)
                         .await
-                        .map_err(|e| warp::reject::custom(DataStorageErrorRejection(e)))?;
+                        .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
                     Ok::<_, Rejection>(warp::reply::json(&data))
                 }
             },
