@@ -1,5 +1,5 @@
 use crate::routes::error::{BadRequestRejection, StorageErrorRejection};
-use redact_crypto::{Storer, Type};
+use redact_crypto::{StorageError, Storer, Type};
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Rejection, Reply};
 
@@ -13,6 +13,9 @@ struct GetQueryParams {
 struct GetCollectionResponse<T: Serialize> {
     results: Vec<T>,
 }
+
+#[derive(Serialize)]
+struct NotFoundResponse {}
 
 pub fn get<T: Storer>(
     storer: T,
@@ -42,17 +45,39 @@ pub fn get<T: Storer>(
                         10
                     };
 
-                    let results = storer
-                        .list::<Type>(&data_path, skip, page_size)
-                        .await
-                        .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
-                    Ok::<_, Rejection>(warp::reply::json(&GetCollectionResponse { results }))
+                    match storer.list::<Type>(&data_path, skip, page_size).await {
+                        Ok(results) => Ok::<_, Rejection>(warp::reply::with_status(
+                            warp::reply::json(&GetCollectionResponse { results }),
+                            warp::http::StatusCode::OK,
+                        )),
+                        Err(e) => {
+                            if let StorageError::NotFound = e {
+                                Ok::<_, Rejection>(warp::reply::with_status(
+                                    warp::reply::json(&NotFoundResponse {}),
+                                    warp::http::StatusCode::NOT_FOUND,
+                                ))
+                            } else {
+                                Err(warp::reject::custom(StorageErrorRejection(e)))
+                            }
+                        }
+                    }
                 } else {
-                    let data = storer
-                        .get::<Type>(&data_path)
-                        .await
-                        .map_err(|e| warp::reject::custom(StorageErrorRejection(e)))?;
-                    Ok::<_, Rejection>(warp::reply::json(&data))
+                    match storer.get::<Type>(&data_path).await {
+                        Ok(data) => Ok::<_, Rejection>(warp::reply::with_status(
+                            warp::reply::json(&data),
+                            warp::http::StatusCode::OK,
+                        )),
+                        Err(e) => {
+                            if let StorageError::NotFound = e {
+                                Ok::<_, Rejection>(warp::reply::with_status(
+                                    warp::reply::json(&NotFoundResponse {}),
+                                    warp::http::StatusCode::NOT_FOUND,
+                                ))
+                            } else {
+                                Err(warp::reject::custom(StorageErrorRejection(e)))
+                            }
+                        }
+                    }
                 }
             },
         )

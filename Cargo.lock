@@ -1664,9 +1664,10 @@ dependencies = [
 [[package]]
 name = "redact-crypto"
 version = "0.1.0"
-source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=7ad182d9189740bdc67a5812f55b71ce8ae9ef36#7ad182d9189740bdc67a5812f55b71ce8ae9ef36"
+source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=add9574911afbbb18d0aa0c2faa105860bdd2585#add9574911afbbb18d0aa0c2faa105860bdd2585"
 dependencies = [
  "async-trait",
+ "base64 0.13.0",
  "futures",
  "hex",
  "mockall",

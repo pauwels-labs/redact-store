@@ -50,22 +50,10 @@ async fn main() {
         .and(warp::get())
         .map(|| warp::reply::json(&Healthz {}));
 
-    // let keys_get = warp::path("keys")
-    //     .and(warp::get())
-    //     .and(routes::keys::get(storer.clone()).or(routes::keys::list(storer.clone())));
-    // let keys_post = warp::path("keys")
-    //     .and(warp::post())
-    //     .and(routes::keys::create(storer.clone()));
+    let get = warp::get().and(routes::get::get(storer.clone()));
+    let post = warp::post().and(routes::post::create(storer.clone()));
 
-    let data_get = warp::get().and(routes::get::get(storer.clone()));
-    let data_post = warp::post().and(routes::post::create(storer.clone()));
-
-    let routes = health_get
-        // .or(keys_get)
-        // .or(keys_post)
-        .or(data_get)
-        .or(data_post)
-        .with(warp::log("routes"));
+    let routes = health_get.or(get).or(post).with(warp::log("routes"));
 
     // Start the server
     println!("starting server listening on ::{}", port);
