@@ -53,9 +53,9 @@ async fn main() {
     let get = warp::get().and(routes::get::get(storer.clone()));
     let post = warp::post().and(routes::post::create(storer.clone()));
 
-    let routes = health_get.or(get).or(post).with(warp::log("routes"));
+    //let routes = health_get.or(get).or(post).with(warp::log("routes"));
 
     // Start the server
     println!("starting server listening on ::{}", port);
-    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    warp::serve(post.or(get)).run(([0, 0, 0, 0], port)).await;
 }
