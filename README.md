@@ -1,6 +1,6 @@
 
 # redact-store
-[![License: GPL-3.0](https://img.shields.io/github/license/pauwels-labs/redact-store?style=flat&color=0F80C0)](https://opensource.org/licenses/GPL-3.0) [![crates.io](https://img.shields.io/crates/v/redact-store?style=flat&color=0F80C0)](https://crates.io/crates/redact-store) [![docs.rs](https://img.shields.io/docsrs/redact-store?style=flat)](https://docs.rs/redact-store) [![Coverage Status](https://img.shields.io/coveralls/github/pauwels-labs/redact-store/main?style=flat)](https://coveralls.io/github/pauwels-labs/redact-store?branch=main)
+[![License: GPL-3.0](https://badgen.net/github/license/pauwels-labs/redact-store?color=blue)](https://opensource.org/licenses/GPL-3.0) [![crates.io](https://badgen.net/crates/v/redact-store?color=blue)](https://crates.io/crates/redact-store) [![docs.rs](https://img.shields.io/docsrs/redact-store?style=flat)](https://docs.rs/redact-store) [![Coverage Status](https://badgen.net/coveralls/c/github/pauwels-labs/redact-store/main)](https://coveralls.io/github/pauwels-labs/redact-store?branch=main)
 
 redact-store is a storage server 
 
