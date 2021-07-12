@@ -91,7 +91,7 @@ spec:
           resources: {}
           script: |
             #!/bin/sh
-            cargo publish
+            cargo publish --no-verify
         - name: promote-helm-release
           resources: {}
         - name: promote-jx-promote
