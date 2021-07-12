@@ -1,0 +1,13 @@
+{
+    "path": ".stringKey.",
+    "value": {
+	"t": "Unsealed",
+	"c": {
+	    "builder": {
+		"t": "Data",
+		"c": {}
+	    },
+	    "bytes": "hello"
+	}
+    }
+}
