@@ -33,3 +33,14 @@ To run unit tests:
 To run unit tests+code coverage output (does not work on macos or windows):
 1. `cargo install tarpaulin`
 2. `cargo tarpaulin -o html`
+
+## Docs & Support
+Docs are available at [docs.redact.ws](https://docs.redact.ws).
+
+Join us in our Keybase channel! You can download the keybase client [here](https://keybase.io/download).
+
+Once there, click on Teams, select Join a team, and our team name is pauwelslabs.
+
+Once you're in, Redact discussion happens in the #redact channel.
+
+Discussions in the Keybase team should be respectful, focused on Redact, and free of profanity.
