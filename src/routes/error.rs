@@ -1,9 +1,9 @@
-use redact_crypto::StorageError;
+use redact_crypto::CryptoError;
 use warp::reject::Reject;
 
 #[derive(Debug)]
-pub struct StorageErrorRejection(pub StorageError);
-impl Reject for StorageErrorRejection {}
+pub struct CryptoErrorRejection(pub CryptoError);
+impl Reject for CryptoErrorRejection {}
 
 #[derive(Debug)]
 pub struct BadRequestRejection;

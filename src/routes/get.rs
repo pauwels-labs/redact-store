@@ -1,5 +1,5 @@
-use crate::routes::error::{BadRequestRejection, StorageErrorRejection};
-use redact_crypto::{StorageError, Storer, Type};
+use crate::routes::error::{BadRequestRejection, CryptoErrorRejection};
+use redact_crypto::{CryptoError, Storer, Type};
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Rejection, Reply};
 
@@ -51,13 +51,13 @@ pub fn get<T: Storer>(
                             warp::http::StatusCode::OK,
                         )),
                         Err(e) => {
-                            if let StorageError::NotFound = e {
+                            if let CryptoError::NotFound { .. } = e {
                                 Ok::<_, Rejection>(warp::reply::with_status(
                                     warp::reply::json(&NotFoundResponse {}),
                                     warp::http::StatusCode::NOT_FOUND,
                                 ))
                             } else {
-                                Err(warp::reject::custom(StorageErrorRejection(e)))
+                                Err(warp::reject::custom(CryptoErrorRejection(e)))
                             }
                         }
                     }
@@ -68,13 +68,13 @@ pub fn get<T: Storer>(
                             warp::http::StatusCode::OK,
                         )),
                         Err(e) => {
-                            if let StorageError::NotFound = e {
+                            if let CryptoError::NotFound { .. } = e {
                                 Ok::<_, Rejection>(warp::reply::with_status(
                                     warp::reply::json(&NotFoundResponse {}),
                                     warp::http::StatusCode::NOT_FOUND,
                                 ))
                             } else {
-                                Err(warp::reject::custom(StorageErrorRejection(e)))
+                                Err(warp::reject::custom(CryptoErrorRejection(e)))
                             }
                         }
                     }
