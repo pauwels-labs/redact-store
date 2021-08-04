@@ -1,5 +1,7 @@
 use crate::routes::error::CryptoErrorRejection;
-use redact_crypto::{Entry, Storer};
+use redact_crypto::{
+    Entry, Storer, Type,
+};
 use serde::Serialize;
 use warp::{Filter, Rejection, Reply};
 
@@ -14,16 +16,16 @@ pub fn create<T: Storer>(
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path::end()
         .and(warp::body::content_length_limit(1024 * 1024 * 250))
-        .and(warp::body::json::<Entry>())
+        .and(warp::body::json::<Entry<Type>>())
         .and(warp::any().map(move || storer.clone()))
-        .and_then(move |entry: Entry, storer: T| async move {
-            let success = storer
-                .create(entry.path, entry.value)
+        .and_then(move |entry: Entry<Type>, storer: T| async move {
+            storer
+                .create(entry)
                 .await
                 .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
 
             Ok::<_, Rejection>(warp::reply::json(&CreateResponse {
-                success,
+                success: true,
                 msg: "inserted".to_owned(),
             }))
         })

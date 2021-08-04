@@ -43,7 +43,7 @@ async fn main() {
     // Extract handle to the database
     let db_url = config.get_str("db.url").unwrap();
     let db_name = config.get_str("db.name").unwrap();
-    let storer = MongoStorer::new(&db_url, &db_name).await;
+    let storer = MongoStorer::new(&db_url, &db_name);
 
     // Build out routes
     let health_get = warp::path!("healthz")
