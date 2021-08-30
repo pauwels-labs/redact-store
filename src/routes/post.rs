@@ -1,7 +1,7 @@
+use std::sync::Arc;
+
 use crate::routes::error::CryptoErrorRejection;
-use redact_crypto::{
-    Entry, Storer, Type,
-};
+use redact_crypto::{Entry, Storer, Type};
 use serde::Serialize;
 use warp::{Filter, Rejection, Reply};
 
@@ -12,13 +12,13 @@ struct CreateResponse {
 }
 
 pub fn create<T: Storer>(
-    storer: T,
+    storer: Arc<T>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path::end()
         .and(warp::body::content_length_limit(1024 * 1024 * 250))
         .and(warp::body::json::<Entry<Type>>())
         .and(warp::any().map(move || storer.clone()))
-        .and_then(move |entry: Entry<Type>, storer: T| async move {
+        .and_then(move |entry: Entry<Type>, storer: Arc<T>| async move {
             storer
                 .create(entry)
                 .await

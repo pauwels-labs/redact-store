@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::routes::error::{BadRequestRejection, CryptoErrorRejection};
 use redact_crypto::{CryptoError, Storer, Type};
 use serde::{Deserialize, Serialize};
@@ -18,7 +20,7 @@ struct GetCollectionResponse<T: Serialize> {
 struct NotFoundResponse {}
 
 pub fn get<T: Storer>(
-    storer: T,
+    storer: Arc<T>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!(String)
         .map(|data_path| data_path)
@@ -37,7 +39,7 @@ pub fn get<T: Storer>(
         )
         .and(warp::any().map(move || storer.clone()))
         .and_then(
-            move |data_path: String, query: GetQueryParams, storer: T| async move {
+            move |data_path: String, query: GetQueryParams, storer: Arc<T>| async move {
                 if let Some(skip) = query.skip {
                     let page_size = if let Some(page_size) = query.page_size {
                         page_size

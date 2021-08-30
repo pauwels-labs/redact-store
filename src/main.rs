@@ -1,5 +1,7 @@
 mod routes;
 
+use std::sync::Arc;
+
 use redact_config::Configurator;
 use redact_crypto::MongoStorer;
 use serde::Serialize;
@@ -43,7 +45,7 @@ async fn main() {
     // Extract handle to the database
     let db_url = config.get_str("db.url").unwrap();
     let db_name = config.get_str("db.name").unwrap();
-    let storer = MongoStorer::new(&db_url, &db_name);
+    let storer = Arc::new(MongoStorer::new(&db_url, &db_name));
 
     // Build out routes
     let health_get = warp::path!("healthz")

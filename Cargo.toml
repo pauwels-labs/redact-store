@@ -37,4 +37,5 @@ futures = "0.3.8"
 pretty_env_logger = "0.4"
 async-trait = "0.1.42"
 async-recursion = "0.3.2"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "12b54f4cffe7019759152b06ef89afb4c807c9c9" }
+redact-crypto = "2.0.0"
+google-cloud = "0.2.1"
