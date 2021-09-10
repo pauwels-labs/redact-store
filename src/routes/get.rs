@@ -1,11 +1,12 @@
+use std::sync::Arc;
 use crate::routes::error::{BadRequestRejection, CryptoErrorRejection};
-use redact_crypto::{CryptoError, Storer, Type};
+use redact_crypto::{CryptoError, IndexedStorer, Type};
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Rejection, Reply};
 
 #[derive(Serialize, Deserialize)]
 struct GetQueryParams {
-    skip: Option<i64>,
+    skip: Option<u64>,
     page_size: Option<i64>,
 }
 
@@ -17,8 +18,8 @@ struct GetCollectionResponse<T: Serialize> {
 #[derive(Serialize)]
 struct NotFoundResponse {}
 
-pub fn get<T: Storer>(
-    storer: T,
+pub fn get<T: IndexedStorer>(
+    storer: Arc<T>
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!(String)
         .map(|data_path| data_path)
@@ -37,7 +38,7 @@ pub fn get<T: Storer>(
         )
         .and(warp::any().map(move || storer.clone()))
         .and_then(
-            move |data_path: String, query: GetQueryParams, storer: T| async move {
+            move |data_path: String, query: GetQueryParams, storer: Arc<T>| async move {
                 if let Some(skip) = query.skip {
                     let page_size = if let Some(page_size) = query.page_size {
                         page_size
@@ -63,10 +64,27 @@ pub fn get<T: Storer>(
                     }
                 } else {
                     match storer.get::<Type>(&data_path).await {
-                        Ok(data) => Ok::<_, Rejection>(warp::reply::with_status(
-                            warp::reply::json(&data),
-                            warp::http::StatusCode::OK,
-                        )),
+                        Ok(data) => {
+                            let dereferenced_data = data.dereference().await;
+
+                            match dereferenced_data {
+                                Ok(data) => Ok::<_, Rejection>(warp::reply::with_status(
+                                    warp::reply::json(&data),
+                                    warp::http::StatusCode::OK,
+                                )),
+                                Err(e) => {
+                                    if let CryptoError::NotFound { .. } = e {
+                                        Ok::<_, Rejection>(warp::reply::with_status(
+                                            warp::reply::json(&NotFoundResponse {}),
+                                            warp::http::StatusCode::NOT_FOUND,
+                                        ))
+                                    } else {
+                                        Err(warp::reject::custom(CryptoErrorRejection(e)))
+                                    }
+                                }
+                            }
+
+                        },
                         Err(e) => {
                             if let CryptoError::NotFound { .. } = e {
                                 Ok::<_, Rejection>(warp::reply::with_status(

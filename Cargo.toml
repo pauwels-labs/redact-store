@@ -26,15 +26,15 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "0.2", features = ["macros"] }
-warp = "0.2"
+tokio = { version = "1.10.1", features = ["macros", "rt-multi-thread"] }
+warp = "0.3.1"
 redact-config = "1.0.1"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0.64"
-mongodb = "1.2.1"
+mongodb = "2.0.0-beta.3"
 bson = "1.1.0"
-futures = "0.3.8"
+futures = "0.3.16"
 pretty_env_logger = "0.4"
-async-trait = "0.1.42"
+async-trait = "0.1.51"
 async-recursion = "0.3.2"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "070c6c8b917f6a6f40d633e2fcb78c220a806ec4" }
+redact-crypto = "2.2.3"

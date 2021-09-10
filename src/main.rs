@@ -1,9 +1,14 @@
 mod routes;
 
 use redact_config::Configurator;
-use redact_crypto::MongoStorer;
+use redact_crypto::{MongoStorer, TypeStorer};
 use serde::Serialize;
 use warp::Filter;
+use std::sync::Arc;
+use redact_crypto::storage::gcs::GoogleCloudStorer;
+use redact_crypto::storage::TypeStorer::NonIndexedTypeStorer;
+use redact_crypto::storage::NonIndexedTypeStorer::GoogleCloud;
+
 
 #[derive(Serialize)]
 struct Healthz {}
@@ -43,14 +48,24 @@ async fn main() {
     // Extract handle to the database
     let db_url = config.get_str("db.url").unwrap();
     let db_name = config.get_str("db.name").unwrap();
-    let storer = MongoStorer::new(&db_url, &db_name).await;
+    let mongo_storer = Arc::new(MongoStorer::new(&db_url, &db_name));
+
+    let storage_bucket_name = config.get_str("google.storage.bucket.name").unwrap();
+    let google_storer = Arc::new(
+        TypeStorer::NonIndexedTypeStorer(
+            GoogleCloud(
+                GoogleCloudStorer::new(
+                    storage_bucket_name)
+            )
+        )
+    );
 
     // Build out routes
     let health_get = warp::path!("healthz")
         .and(warp::get())
         .map(|| warp::reply::json(&Healthz {}));
-    let get = warp::get().and(routes::get::get(storer.clone()));
-    let post = warp::post().and(routes::post::create(storer.clone()));
+    let get = warp::get().and(routes::get::get(mongo_storer.clone()));
+    let post = warp::post().and(routes::post::create(mongo_storer.clone(), google_storer.clone()));
 
     let routes = health_get.or(get).or(post).with(warp::log("routes"));
 
