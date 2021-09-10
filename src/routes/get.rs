@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use crate::routes::error::{BadRequestRejection, CryptoErrorRejection};
-use redact_crypto::{CryptoError, Storer, Type};
+use redact_crypto::{CryptoError, IndexedStorer, Type};
 use serde::{Deserialize, Serialize};
 use warp::{Filter, Rejection, Reply};
 
 #[derive(Serialize, Deserialize)]
 struct GetQueryParams {
-    skip: Option<i64>,
+    skip: Option<u64>,
     page_size: Option<i64>,
 }
 
@@ -19,7 +19,7 @@ struct GetCollectionResponse<T: Serialize> {
 #[derive(Serialize)]
 struct NotFoundResponse {}
 
-pub fn get<T: Storer>(
+pub fn get<T: IndexedStorer>(
     storer: Arc<T>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!(String)
