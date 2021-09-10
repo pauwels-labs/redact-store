@@ -1,8 +1,8 @@
+use std::sync::Arc;
 use crate::routes::error::CryptoErrorRejection;
 use redact_crypto::{Entry, Storer, Type, TypeBuilder, DataBuilder, State, TypeStorer, Data};
 use serde::Serialize;
 use warp::{Filter, Rejection, Reply};
-use std::sync::Arc;
 
 #[derive(Serialize)]
 struct CreateResponse {
@@ -10,8 +10,8 @@ struct CreateResponse {
     msg: String,
 }
 
-pub fn create<T: Storer + Clone>(
-    storer: T,
+pub fn create<T: Storer>(
+    storer: Arc<T>,
     blob_storer: Arc<TypeStorer>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path::end()
@@ -19,7 +19,7 @@ pub fn create<T: Storer + Clone>(
         .and(warp::body::json::<Entry<Type>>())
         .and(warp::any().map(move || storer.clone()))
         .and(warp::any().map(move || blob_storer.clone()))
-        .and_then(move |entry: Entry<Type>, storer: T, blob_storer: Arc<TypeStorer>| async move {
+        .and_then(move |entry: Entry<Type>, storer: Arc<T>, blob_storer: Arc<TypeStorer>| async move {
             match entry.builder {
                 TypeBuilder::Data(d) => {
                     match d {
@@ -55,7 +55,6 @@ pub fn create<T: Storer + Clone>(
                         .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
                 }
             }
-
 
             Ok::<_, Rejection>(warp::reply::json(&CreateResponse {
                 success: true,

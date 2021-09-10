@@ -5,7 +5,9 @@ use redact_crypto::{MongoStorer, TypeStorer};
 use serde::Serialize;
 use warp::Filter;
 use std::sync::Arc;
-use redact_crypto::storage::google_cloud_storage::GoogleCloudStorer;
+use redact_crypto::storage::gcs::GoogleCloudStorer;
+use redact_crypto::storage::TypeStorer::NonIndexedTypeStorer;
+use redact_crypto::storage::NonIndexedTypeStorer::GoogleCloud;
 
 
 #[derive(Serialize)]
@@ -49,7 +51,14 @@ async fn main() {
     let mongo_storer = Arc::new(MongoStorer::new(&db_url, &db_name));
 
     let storage_bucket_name = config.get_str("google.storage.bucket.name").unwrap();
-    let google_storer = Arc::new(TypeStorer::GoogleCloud(GoogleCloudStorer::new(storage_bucket_name)));
+    let google_storer = Arc::new(
+        TypeStorer::NonIndexedTypeStorer(
+            GoogleCloud(
+                GoogleCloudStorer::new(
+                    storage_bucket_name)
+            )
+        )
+    );
 
     // Build out routes
     let health_get = warp::path!("healthz")
