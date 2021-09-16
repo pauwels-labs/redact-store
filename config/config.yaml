@@ -1,3 +1,7 @@
+google:
+  storage:
+    bucket:
+      name: bucket
 db:
   url: ""
   name: ""
