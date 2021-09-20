@@ -3,7 +3,6 @@ mod routes;
 use redact_config::Configurator;
 use redact_crypto::storage::gcs::GoogleCloudStorer;
 use redact_crypto::storage::NonIndexedTypeStorer::GoogleCloud;
-use redact_crypto::storage::TypeStorer::NonIndexedTypeStorer;
 use redact_crypto::{MongoStorer, TypeStorer};
 use serde::Serialize;
 use std::sync::Arc;
@@ -64,7 +63,7 @@ async fn main() {
         google_storer.clone(),
     ));
 
-    let routes = health_get.or(get).or(post).with(warp::log("routes"));
+    let routes = health_get.or(get).or(post).with(warp::log("routes::post"));
 
     let cert_path = config.get_str("tls.server.certificate.path").unwrap();
     let key_path = config.get_str("tls.server.key.path").unwrap();

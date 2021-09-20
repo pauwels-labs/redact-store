@@ -10,7 +10,7 @@ tls:
 google:
   storage:
     bucket:
-      name: bucket
+      name: default_bucket_hw
 db:
   url: ""
   name: ""
