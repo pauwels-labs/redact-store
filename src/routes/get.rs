@@ -1,5 +1,6 @@
-use crate::routes::error::{BadRequestRejection, CryptoErrorRejection};
+use crate::routes::error::{BadRequestRejection, CryptoErrorRejection, X509ErrorRejection};
 use redact_crypto::{CryptoError, IndexedStorer, Type};
+use rustls::Certificate;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use warp::{Filter, Rejection, Reply};
@@ -36,9 +37,19 @@ pub fn get<T: IndexedStorer>(
                 }
             }),
         )
+        .and(warp::ext::get::<Certificate>())
         .and(warp::any().map(move || storer.clone()))
         .and_then(
-            move |data_path: String, query: GetQueryParams, storer: Arc<T>| async move {
+            move |data_path: String,
+                  query: GetQueryParams,
+                  client_cert: Certificate,
+                  storer: Arc<T>| async move {
+                let x509_result = x509_parser::parse_x509_certificate(&client_cert.0);
+                let client_cert = match x509_result {
+                    Ok((_, cert)) => Ok(cert),
+                    Err(e) => Err(warp::reject::custom(X509ErrorRejection(e))),
+                }?;
+
                 if let Some(skip) = query.skip {
                     let page_size = if let Some(page_size) = query.page_size {
                         page_size

@@ -38,3 +38,7 @@ pretty_env_logger = "0.4"
 async-trait = "0.1.51"
 async-recursion = "0.3.2"
 redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "c3d7c66e28142d737efe82468b63b1be61a1f332" }
+tokio-rustls = "0.22.0"
+rustls = "0.19.1"
+hyper = "0.14.13"
+x509-parser = "0.12.0"
