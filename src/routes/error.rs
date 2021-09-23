@@ -8,3 +8,7 @@ impl Reject for CryptoErrorRejection {}
 #[derive(Debug)]
 pub struct BadRequestRejection;
 impl Reject for BadRequestRejection {}
+
+#[derive(Debug)]
+pub struct NotFoundRejection;
+impl Reject for NotFoundRejection {}

@@ -20,6 +20,8 @@ pub fn create<T: Storer>(
         .and(warp::any().map(move || storer.clone()))
         .and(warp::any().map(move || blob_storer.clone()))
         .and_then(move |entry: Entry<Type>, storer: Arc<T>, blob_storer: Arc<TypeStorer>| async move {
+            let entry_path = entry.path.clone();
+
             match entry.builder {
                 TypeBuilder::Data(d) => {
                     match d {
@@ -33,18 +35,27 @@ pub fn create<T: Storer>(
                             blob_storer
                                 .create(entry)
                                 .await
-                                .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
+                                .map_err(|e| {
+                                    log::error!("An error occurred while uploading binary data to blob storage at path {}: {}", entry_path, e.to_string());
+                                    warp::reject::custom(CryptoErrorRejection(e))
+                                })?;
 
                             storer
                                 .create(ref_entry)
                                 .await
-                                .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
+                                .map_err(|e| {
+                                    log::error!("An error occurred while creating binary data reference {}: {}", entry_path, e.to_string());
+                                    warp::reject::custom(CryptoErrorRejection(e))
+                                })?;
                         }
                         _ => {
                             storer
                                 .create(entry)
                                 .await
-                                .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
+                                .map_err(|e| {
+                                    log::error!("An error occurred while creating data entry at path {}: {}", entry_path, e.to_string());
+                                    warp::reject::custom(CryptoErrorRejection(e))
+                                })?;
                         }
                     }
                 },
@@ -52,7 +63,10 @@ pub fn create<T: Storer>(
                     storer
                         .create(entry)
                         .await
-                        .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
+                        .map_err(|e| {
+                            log::error!("An error occurred while creating entry at path {}: {}", entry_path, e.to_string());
+                            warp::reject::custom(CryptoErrorRejection(e))
+                        })?;
                 }
             }
 
