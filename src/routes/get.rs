@@ -52,7 +52,7 @@ pub fn get<T: IndexedStorer>(
                             if let CryptoError::NotFound { .. } = e {
                                 Err(warp::reject::custom(NotFoundRejection))
                             } else {
-                                log::error!("An error occurred while retrieving the entries list at path {}: {}", data_path, e.to_string());
+                                log::error!("An error occurred while retrieving the entries list at path {}: {}", data_path, e);
                                 Err(warp::reject::custom(CryptoErrorRejection(e)))
                             }
                         }
@@ -71,7 +71,7 @@ pub fn get<T: IndexedStorer>(
                                     if let CryptoError::NotFound { .. } = e {
                                         Err(warp::reject::custom(NotFoundRejection))
                                     } else {
-                                        log::error!("An error occurred while dereferencing the entry at path {}: {}", data_path, e.to_string());
+                                        log::error!("An error occurred while dereferencing the entry at path {}: {}", data_path, e);
                                         Err(warp::reject::custom(CryptoErrorRejection(e)))
                                     }
                                 }
@@ -82,7 +82,7 @@ pub fn get<T: IndexedStorer>(
                             if let CryptoError::NotFound { .. } = e {
                                 Err(warp::reject::custom(NotFoundRejection))
                             } else {
-                                log::error!("An error occurred while retrieving the entry at path {}: {}", data_path, e.to_string());
+                                log::error!("An error occurred while retrieving the entry at path {}: {}", data_path, e);
                                 Err(warp::reject::custom(CryptoErrorRejection(e)))
                             }
                         }

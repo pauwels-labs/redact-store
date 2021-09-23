@@ -36,7 +36,7 @@ pub fn create<T: Storer>(
                                 .create(entry)
                                 .await
                                 .map_err(|e| {
-                                    log::error!("An error occurred while uploading binary data to blob storage at path {}: {}", entry_path, e.to_string());
+                                    log::error!("An error occurred while uploading binary data to blob storage at path {}: {}", entry_path, e);
                                     warp::reject::custom(CryptoErrorRejection(e))
                                 })?;
 
@@ -44,7 +44,7 @@ pub fn create<T: Storer>(
                                 .create(ref_entry)
                                 .await
                                 .map_err(|e| {
-                                    log::error!("An error occurred while creating binary data reference {}: {}", entry_path, e.to_string());
+                                    log::error!("An error occurred while creating binary data reference {}: {}", entry_path, e);
                                     warp::reject::custom(CryptoErrorRejection(e))
                                 })?;
                         }
@@ -53,7 +53,7 @@ pub fn create<T: Storer>(
                                 .create(entry)
                                 .await
                                 .map_err(|e| {
-                                    log::error!("An error occurred while creating data entry at path {}: {}", entry_path, e.to_string());
+                                    log::error!("An error occurred while creating data entry at path {}: {}", entry_path, e);
                                     warp::reject::custom(CryptoErrorRejection(e))
                                 })?;
                         }
@@ -64,7 +64,7 @@ pub fn create<T: Storer>(
                         .create(entry)
                         .await
                         .map_err(|e| {
-                            log::error!("An error occurred while creating entry at path {}: {}", entry_path, e.to_string());
+                            log::error!("An error occurred while creating entry at path {}: {}", entry_path, e);
                             warp::reject::custom(CryptoErrorRejection(e))
                         })?;
                 }
