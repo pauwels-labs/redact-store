@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use crate::routes::error::{BadRequestRejection, CryptoErrorRejection};
 use redact_crypto::{CryptoError, IndexedStorer, Type};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use warp::{Filter, Rejection, Reply};
 
 #[derive(Serialize, Deserialize)]
@@ -19,7 +19,7 @@ struct GetCollectionResponse<T: Serialize> {
 struct NotFoundResponse {}
 
 pub fn get<T: IndexedStorer>(
-    storer: Arc<T>
+    storer: Arc<T>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!(String)
         .map(|data_path| data_path)
@@ -83,8 +83,7 @@ pub fn get<T: IndexedStorer>(
                                     }
                                 }
                             }
-
-                        },
+                        }
                         Err(e) => {
                             if let CryptoError::NotFound { .. } = e {
                                 Ok::<_, Rejection>(warp::reply::with_status(
