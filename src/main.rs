@@ -1,4 +1,5 @@
 mod routes;
+mod error_handler;
 
 use redact_config::Configurator;
 use redact_crypto::{MongoStorer, TypeStorer};
@@ -6,8 +7,9 @@ use serde::Serialize;
 use warp::Filter;
 use std::sync::Arc;
 use redact_crypto::storage::gcs::GoogleCloudStorer;
-use redact_crypto::storage::TypeStorer::NonIndexedTypeStorer;
 use redact_crypto::storage::NonIndexedTypeStorer::GoogleCloud;
+use std::io::Write;
+use crate::error_handler::handle_rejection;
 
 
 #[derive(Serialize)]
@@ -15,7 +17,20 @@ struct Healthz {}
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    // pretty_env_logger::init();
+    env_logger::builder()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}:{} {} [{}] - {}",
+                record.file().unwrap_or("unknown"),
+                record.line().unwrap_or(0),
+                chrono::Local::now().format("%Y-%m-%dT%H:%M:%S"),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
 
     // Extract config with a REDACT_ env var prefix
     let config = redact_config::new("REDACT").unwrap();
@@ -67,7 +82,10 @@ async fn main() {
     let get = warp::get().and(routes::get::get(mongo_storer.clone()));
     let post = warp::post().and(routes::post::create(mongo_storer.clone(), google_storer.clone()));
 
-    let routes = health_get.or(get).or(post).with(warp::log("routes"));
+    let routes = health_get.or(get)
+        .or(post)
+        .with(warp::log("routes"))
+        .recover(handle_rejection);
 
     // Start the server
     println!("starting server listening on ::{}", port);
