@@ -1,3 +1,4 @@
+mod bootstrap;
 mod routes;
 
 use chrono::{prelude::*, Duration};
@@ -9,10 +10,12 @@ use redact_crypto::{
 };
 use redact_crypto::{storage::NonIndexedTypeStorer::GoogleCloud, HasPublicKey};
 use redact_crypto::{x509::DistinguishedName, MongoStorer, TypeStorer};
+use rustls::{internal::pemfile, AllowAnyAuthenticatedClient, RootCertStore, ServerConfig};
 use serde::Serialize;
 use std::{
     fs::File,
-    io::{ErrorKind, Write},
+    io::{self, ErrorKind, Write},
+    net::SocketAddr,
     sync::Arc,
 };
 use warp::Filter;
@@ -193,9 +196,71 @@ async fn main() {
         google_storer.clone(),
     ));
 
-    let routes = health_get.or(get).or(post).with(warp::log("routes"));
+    let total_route = health_get.or(get).or(post);
 
-    // Start the server
-    println!("starting server listening on ::{}", port);
-    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    // Build TLS configuration.
+    let tls_config = {
+        let cert_path = config.get_str("tls.server.certificate.path").unwrap();
+        let key_path = config.get_str("tls.server.key.path").unwrap();
+        let client_ca_path = config.get_str("tls.client.ca.path").unwrap();
+
+        let mut rcs = RootCertStore::empty();
+        let file = File::open(&client_ca_path).unwrap();
+        let mut reader = io::BufReader::new(file);
+        rcs.add_pem_file(&mut reader)
+            .map_err(|_err| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("Failed to load root cert store from {}", &client_ca_path),
+                )
+            })
+            .unwrap();
+
+        let mut config = ServerConfig::new(AllowAnyAuthenticatedClient::new(rcs));
+        // Select a certificate to use.
+        let file = File::open(&cert_path).unwrap();
+        let mut reader = io::BufReader::new(file);
+        let certs = pemfile::certs(&mut reader)
+            .map_err(|_err| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("Cannot load certificate from {}", &cert_path),
+                )
+            })
+            .unwrap();
+        let file = File::open(&key_path).unwrap();
+        let mut reader = io::BufReader::new(file);
+        let keys = pemfile::pkcs8_private_keys(&mut reader)
+            .map_err(|_err| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("Cannot load private key from {}", &key_path),
+                )
+            })
+            .unwrap();
+        let key = keys
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("No keys found in the private key file {}", key_path),
+                )
+            })
+            .unwrap();
+        config
+            .set_single_cert(certs, key)
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, format!("{}", err)))
+            .unwrap();
+        Arc::new(config)
+    };
+
+    let socket_addr: SocketAddr = ([0, 0, 0, 0], port).into();
+    loop {
+        if let Err(e) =
+            bootstrap::serve_mtls(socket_addr, tls_config.clone(), total_route.clone()).await
+        {
+            eprintln!("Problem accepting TLS connection: {}", e);
+        }
+    }
 }

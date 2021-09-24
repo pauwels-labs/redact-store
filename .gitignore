@@ -6,3 +6,8 @@
 
 # don't include the cov report
 tarpaulin-report.html
+
+# don't include tls files
+tls/server/cert/*
+tls/server/key/*
+tls/client/ca/*
