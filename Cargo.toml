@@ -46,3 +46,5 @@ chrono = "0.4.19"
 base64 = "0.13.0"
 pkcs8 = { version = "0.7.5", features = ["pem"] }
 der = { git = "https://github.com/rustcrypto/formats.git", rev = "566abc5ef466a6b85d37ec8a779500f906dff8ce" }
+log = "0.4"
+env_logger = "0.9"

@@ -1,4 +1,6 @@
-use crate::routes::error::{BadRequestRejection, CryptoErrorRejection, X509ErrorRejection};
+use crate::routes::error::{
+    BadRequestRejection, CryptoErrorRejection, NotFoundRejection, X509ErrorRejection,
+};
 use redact_crypto::{CryptoError, IndexedStorer, Type};
 use rustls::Certificate;
 use serde::{Deserialize, Serialize};
@@ -15,9 +17,6 @@ struct GetQueryParams {
 struct GetCollectionResponse<T: Serialize> {
     results: Vec<T>,
 }
-
-#[derive(Serialize)]
-struct NotFoundResponse {}
 
 pub fn get<T: IndexedStorer>(
     storer: Arc<T>,
@@ -41,11 +40,11 @@ pub fn get<T: IndexedStorer>(
         .and(warp::any().map(move || storer.clone()))
         .and_then(
             move |data_path: String,
-                  query: GetQueryParams,
-                  client_cert: Certificate,
-                  storer: Arc<T>| async move {
+            query: GetQueryParams,
+            client_cert: Certificate,
+            storer: Arc<T>| async move {
                 let x509_result = x509_parser::parse_x509_certificate(&client_cert.0);
-                let client_cert = match x509_result {
+                let _ = match x509_result {
                     Ok((_, cert)) => Ok(cert),
                     Err(e) => Err(warp::reject::custom(X509ErrorRejection(e))),
                 }?;
@@ -64,11 +63,9 @@ pub fn get<T: IndexedStorer>(
                         )),
                         Err(e) => {
                             if let CryptoError::NotFound { .. } = e {
-                                Ok::<_, Rejection>(warp::reply::with_status(
-                                    warp::reply::json(&NotFoundResponse {}),
-                                    warp::http::StatusCode::NOT_FOUND,
-                                ))
+                                Err(warp::reject::custom(NotFoundRejection))
                             } else {
+                                log::error!("An error occurred while retrieving the entries list at path {}: {}", data_path, e);
                                 Err(warp::reject::custom(CryptoErrorRejection(e)))
                             }
                         }
@@ -85,11 +82,9 @@ pub fn get<T: IndexedStorer>(
                                 )),
                                 Err(e) => {
                                     if let CryptoError::NotFound { .. } = e {
-                                        Ok::<_, Rejection>(warp::reply::with_status(
-                                            warp::reply::json(&NotFoundResponse {}),
-                                            warp::http::StatusCode::NOT_FOUND,
-                                        ))
+                                        Err(warp::reject::custom(NotFoundRejection))
                                     } else {
+                                        log::error!("An error occurred while dereferencing the entry at path {}: {}", data_path, e);
                                         Err(warp::reject::custom(CryptoErrorRejection(e)))
                                     }
                                 }
@@ -97,11 +92,9 @@ pub fn get<T: IndexedStorer>(
                         }
                         Err(e) => {
                             if let CryptoError::NotFound { .. } = e {
-                                Ok::<_, Rejection>(warp::reply::with_status(
-                                    warp::reply::json(&NotFoundResponse {}),
-                                    warp::http::StatusCode::NOT_FOUND,
-                                ))
+                                Err(warp::reject::custom(NotFoundRejection))
                             } else {
+                                log::error!("An error occurred while retrieving the entry at path {}: {}", data_path, e);
                                 Err(warp::reject::custom(CryptoErrorRejection(e)))
                             }
                         }

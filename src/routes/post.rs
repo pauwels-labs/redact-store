@@ -19,52 +19,60 @@ pub fn create<T: Storer>(
         .and(warp::body::json::<Entry<Type>>())
         .and(warp::any().map(move || storer.clone()))
         .and(warp::any().map(move || blob_storer.clone()))
-        .and_then(
-            move |entry: Entry<Type>, storer: Arc<T>, blob_storer: Arc<TypeStorer>| async move {
-                match entry.builder {
-                    TypeBuilder::Data(d) => {
-                        match d {
-                            DataBuilder::Binary(_) => {
-                                let ref_entry: Entry<Data> = Entry::new(
-                                    entry.path.clone(),
-                                    entry.builder,
-                                    State::Referenced {
-                                        path: entry.path.clone(),
-                                        storer: (*blob_storer).clone(),
-                                    },
-                                );
+        .and_then(move |entry: Entry<Type>, storer: Arc<T>, blob_storer: Arc<TypeStorer>| async move {
+            let entry_path = entry.path.clone();
 
-                                // TODO: orchestration
-                                blob_storer
-                                    .create(entry)
-                                    .await
-                                    .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
+            match entry.builder {
+                TypeBuilder::Data(d) => {
+                    match d {
+                        DataBuilder::Binary(_) => {
+                            let ref_entry: Entry<Data> = Entry::new(entry.path.clone(), entry.builder, State::Referenced {
+                                path: entry.path.clone(),
+                                storer: (*blob_storer).clone()
+                            });
 
-                                storer
-                                    .create(ref_entry)
-                                    .await
-                                    .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
-                            }
-                            _ => {
-                                storer
-                                    .create(entry)
-                                    .await
-                                    .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
-                            }
+                            // TODO: orchestration
+                            blob_storer
+                                .create(entry)
+                                .await
+                                .map_err(|e| {
+                                    log::error!("An error occurred while uploading binary data to blob storage at path {}: {}", entry_path, e);
+                                    warp::reject::custom(CryptoErrorRejection(e))
+                                })?;
+
+                            storer
+                                .create(ref_entry)
+                                .await
+                                .map_err(|e| {
+                                    log::error!("An error occurred while creating binary data reference {}: {}", entry_path, e);
+                                    warp::reject::custom(CryptoErrorRejection(e))
+                                })?;
+                        }
+                        _ => {
+                            storer
+                                .create(entry)
+                                .await
+                                .map_err(|e| {
+                                    log::error!("An error occurred while creating data entry at path {}: {}", entry_path, e);
+                                    warp::reject::custom(CryptoErrorRejection(e))
+                                })?;
                         }
                     }
-                    _ => {
-                        storer
-                            .create(entry)
-                            .await
-                            .map_err(|e| warp::reject::custom(CryptoErrorRejection(e)))?;
-                    }
+                },
+                _ => {
+                    storer
+                        .create(entry)
+                        .await
+                        .map_err(|e| {
+                            log::error!("An error occurred while creating entry at path {}: {}", entry_path, e);
+                            warp::reject::custom(CryptoErrorRejection(e))
+                        })?;
                 }
+	    }
 
-                Ok::<_, Rejection>(warp::reply::json(&CreateResponse {
-                    success: true,
-                    msg: "inserted".to_owned(),
-                }))
-            },
-        )
+            Ok::<_, Rejection>(warp::reply::json(&CreateResponse {
+                success: true,
+                msg: "inserted".to_owned(),
+            }))
+        })
 }

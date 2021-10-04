@@ -29,3 +29,7 @@ db:
   name: ""
 server:
   port: 8081
+google:
+  storage:
+    bucket:
+      name: ""

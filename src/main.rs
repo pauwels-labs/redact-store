@@ -1,6 +1,8 @@
 mod bootstrap;
+mod error_handler;
 mod routes;
 
+use crate::error_handler::handle_rejection;
 use chrono::{prelude::*, Duration};
 use der::asn1::{Any, OctetString};
 use pkcs8::{PrivateKeyDocument, PrivateKeyInfo};
@@ -30,7 +32,20 @@ struct Healthz {}
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    // pretty_env_logger::init();
+    env_logger::builder()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{}:{} {} [{}] - {}",
+                record.file().unwrap_or("unknown"),
+                record.line().unwrap_or(0),
+                chrono::Local::now().format("%Y-%m-%dT%H:%M:%S"),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
 
     // Extract config with a REDACT_ env var prefix
     let config = redact_config::new("REDACT").unwrap();
@@ -245,7 +260,11 @@ async fn main() {
         google_storer.clone(),
     ));
 
-    let total_route = health_get.or(get).or(post);
+    let total_route = health_get
+        .or(get)
+        .or(post)
+        .with(warp::log("routes"))
+        .recover(handle_rejection);
 
     // Build TLS configuration.
     let tls_config = {

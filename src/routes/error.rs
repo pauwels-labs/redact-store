@@ -13,3 +13,7 @@ impl Reject for BadRequestRejection {}
 #[derive(Debug)]
 pub struct X509ErrorRejection(pub nom::Err<X509Error>);
 impl Reject for X509ErrorRejection {}
+
+#[derive(Debug)]
+pub struct NotFoundRejection;
+impl Reject for NotFoundRejection {}
