@@ -20,8 +20,7 @@ where
     let tls_acceptor = TlsAcceptor::from(tls_config);
 
     // Wait for an incoming TCP connection
-    let (socket, client_addr) = listener.accept().await?;
-    println!("Received connection from {}", client_addr);
+    let (socket, _) = listener.accept().await?;
 
     // Interpret data coming through the TCP stream as a TLS stream
     let stream = tls_acceptor
