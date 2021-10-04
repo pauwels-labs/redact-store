@@ -2,19 +2,24 @@ mod bootstrap;
 mod routes;
 
 use chrono::{prelude::*, Duration};
-use pkcs8::PrivateKeyInfo;
+use der::asn1::{Any, OctetString};
+use pkcs8::{PrivateKeyDocument, PrivateKeyInfo};
 use redact_config::Configurator;
 use redact_crypto::{
-    key::sodiumoxide::SodiumOxideEd25519SecretAsymmetricKey, storage::gcs::GoogleCloudStorer,
-    HasAlgorithmIdentifier, HasByteSource, PublicAsymmetricKey,
+    key::sodiumoxide::{
+        SodiumOxideEd25519SecretAsymmetricKey, SodiumOxideEd25519SecretAsymmetricKeyBuilder,
+    },
+    storage::gcs::GoogleCloudStorer,
+    Builder, HasAlgorithmIdentifier, HasByteSource, PublicAsymmetricKey,
 };
 use redact_crypto::{storage::NonIndexedTypeStorer::GoogleCloud, HasPublicKey};
 use redact_crypto::{x509::DistinguishedName, MongoStorer, TypeStorer};
 use rustls::{internal::pemfile, AllowAnyAuthenticatedClient, RootCertStore, ServerConfig};
 use serde::Serialize;
 use std::{
+    convert::TryInto,
     fs::File,
-    io::{self, ErrorKind, Write},
+    io::{self, ErrorKind, Read, Write},
     net::SocketAddr,
     sync::Arc,
 };
@@ -55,7 +60,31 @@ async fn main() {
         }
     };
 
-    let ca_key = SodiumOxideEd25519SecretAsymmetricKey::new();
+    // Make the storer TLS CA key if it doesn't exist
+    let ca_key_path = config.get_str("tls.ca.key.path").unwrap();
+    let ca_key = match File::open(&ca_key_path) {
+        Ok(mut f) => {
+            let mut pem = String::new();
+            f.read_to_string(&mut pem).unwrap();
+            let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
+            let seed_bytes: OctetString =
+                TryInto::<Any>::try_into(pkd.private_key_info().private_key)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+            // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
+            //                  determine the proper key type; assuming NaCl Ed25519 for now
+            let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
+            Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
+            _ => Err(e),
+        },
+    }
+    .unwrap();
+
+    // Make the storer TLS CA cert and PKCS12 file if it doesn't exist
     let ca_cert_o = config.get_str("tls.ca.certificate.o").unwrap();
     let ca_cert_ou = config.get_str("tls.ca.certificate.ou").unwrap();
     let ca_cert_cn = config.get_str("tls.ca.certificate.cn").unwrap();
@@ -64,8 +93,6 @@ async fn main() {
         ou: &ca_cert_ou,
         cn: &ca_cert_cn,
     };
-
-    // Make the CA TLS cert and PKCS12 file if it doesn't exist
     if let Err(e) = File::open(config.get_str("tls.ca.certificate.path").unwrap()) {
         match e.kind() {
             ErrorKind::NotFound => {
@@ -106,8 +133,7 @@ async fn main() {
                 storer_tls_key_bytes.extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
                 let storer_tls_key_pkcs8 =
                     PrivateKeyInfo::new(ca_key.algorithm_identifier(), &storer_tls_key_bytes);
-                let mut pkcs8_file =
-                    File::create(config.get_str("tls.ca.key.path").unwrap()).unwrap();
+                let mut pkcs8_file = File::create(&ca_key_path).unwrap();
                 pkcs8_file
                     .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
                     .unwrap();
@@ -115,6 +141,30 @@ async fn main() {
             _ => Err(e).unwrap(),
         }
     }
+
+    // Make the storer client TLS key if it doesn't exist
+    let storer_key_path = config.get_str("tls.server.key.path").unwrap();
+    let ca_key = match File::open(&storer_key_path) {
+        Ok(mut f) => {
+            let mut pem = String::new();
+            f.read_to_string(&mut pem).unwrap();
+            let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
+            let seed_bytes: OctetString =
+                TryInto::<Any>::try_into(pkd.private_key_info().private_key)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+            // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
+            //                  determine the proper key type; assuming NaCl Ed25519 for now
+            let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
+            Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
+        }
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
+            _ => Err(e),
+        },
+    }
+    .unwrap();
 
     // Make the storer TLS cert and PKCS12 file if it doesn't exist
     if let Err(e) = File::open(config.get_str("tls.server.certificate.path").unwrap()) {
@@ -166,8 +216,7 @@ async fn main() {
                 storer_tls_key_bytes.extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
                 let storer_tls_key_pkcs8 =
                     PrivateKeyInfo::new(storer_key.algorithm_identifier(), &storer_tls_key_bytes);
-                let mut pkcs8_file =
-                    File::create(config.get_str("tls.server.key.path").unwrap()).unwrap();
+                let mut pkcs8_file = File::create(&storer_key_path).unwrap();
                 pkcs8_file
                     .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
                     .unwrap();
@@ -201,7 +250,6 @@ async fn main() {
     // Build TLS configuration.
     let tls_config = {
         let cert_path = config.get_str("tls.server.certificate.path").unwrap();
-        let key_path = config.get_str("tls.server.key.path").unwrap();
         let client_ca_path = config.get_str("tls.client.ca.path").unwrap();
 
         let mut rcs = RootCertStore::empty();
@@ -228,13 +276,13 @@ async fn main() {
                 )
             })
             .unwrap();
-        let file = File::open(&key_path).unwrap();
+        let file = File::open(&storer_key_path).unwrap();
         let mut reader = io::BufReader::new(file);
         let keys = pemfile::pkcs8_private_keys(&mut reader)
             .map_err(|_err| {
                 io::Error::new(
                     io::ErrorKind::Other,
-                    format!("Cannot load private key from {}", &key_path),
+                    format!("Cannot load private key from {}", &storer_key_path),
                 )
             })
             .unwrap();
@@ -244,7 +292,7 @@ async fn main() {
             .ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::Other,
-                    format!("No keys found in the private key file {}", key_path),
+                    format!("No keys found in the private key file {}", storer_key_path),
                 )
             })
             .unwrap();
@@ -256,6 +304,7 @@ async fn main() {
     };
 
     let socket_addr: SocketAddr = ([0, 0, 0, 0], port).into();
+    println!("starting server listening on ::{}", port);
     loop {
         if let Err(e) =
             bootstrap::serve_mtls(socket_addr, tls_config.clone(), total_route.clone()).await
