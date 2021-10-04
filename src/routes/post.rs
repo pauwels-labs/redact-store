@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use crate::routes::error::CryptoErrorRejection;
-use redact_crypto::{Entry, Storer, Type, TypeBuilder, DataBuilder, State, TypeStorer, Data};
+use redact_crypto::{Data, DataBuilder, Entry, State, Storer, Type, TypeBuilder, TypeStorer};
 use serde::Serialize;
+use std::sync::Arc;
 use warp::{Filter, Rejection, Reply};
 
 #[derive(Serialize)]
@@ -68,7 +68,7 @@ pub fn create<T: Storer>(
                             warp::reject::custom(CryptoErrorRejection(e))
                         })?;
                 }
-            }
+	    }
 
             Ok::<_, Rejection>(warp::reply::json(&CreateResponse {
                 success: true,

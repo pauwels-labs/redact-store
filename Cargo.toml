@@ -27,7 +27,7 @@ exclude = [
 
 [dependencies]
 tokio = { version = "1.10.1", features = ["macros", "rt-multi-thread"] }
-warp = "0.3.1"
+warp = { version = "0.3.1", features = ["tls"] }
 redact-config = "1.0.1"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0.64"
@@ -37,7 +37,14 @@ futures = "0.3.16"
 pretty_env_logger = "0.4"
 async-trait = "0.1.51"
 async-recursion = "0.3.2"
-redact-crypto = "2.2.3"
+redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "a3faa3072cab8401f3e5b5e1c4434589bf5bf3d8" }
+tokio-rustls = "0.22.0"
+rustls = "0.19.1"
+hyper = "0.14.13"
+x509-parser = "0.12.0"
+chrono = "0.4.19"
+base64 = "0.13.0"
+pkcs8 = { version = "0.7.5", features = ["pem"] }
+der = { git = "https://github.com/rustcrypto/formats.git", rev = "566abc5ef466a6b85d37ec8a779500f906dff8ce" }
 log = "0.4"
 env_logger = "0.9"
-chrono = "0.4"

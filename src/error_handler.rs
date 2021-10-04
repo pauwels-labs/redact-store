@@ -1,8 +1,8 @@
+use crate::routes::error::{BadRequestRejection, NotFoundRejection};
 use serde::Serialize;
 use std::convert::Infallible;
 use warp::http::StatusCode;
 use warp::{Rejection, Reply};
-use crate::routes::error::{BadRequestRejection, NotFoundRejection};
 
 /// An API error serializable to JSON.
 #[derive(Serialize)]

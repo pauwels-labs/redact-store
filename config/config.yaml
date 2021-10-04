@@ -1,3 +1,29 @@
+tls:
+  ca:
+    certificate:
+      o: pauwels
+      ou: ca
+      cn: storer
+      expires_in: 365
+      path: "tls/server/cert/ca.pem"
+    key:
+      path: "tls/server/key/ca.pem"
+  server:
+    certificate:
+      o: pauwels
+      ou: tls
+      cn: storer
+      expires_in: 365
+      path: "tls/server/cert/cert.pem"
+    key:
+      path: "tls/server/key/key.pem"
+  client:
+    ca:
+      path: "tls/client/ca/ca.pem"
+google:
+  storage:
+    bucket:
+      name: default_bucket_hw
 db:
   url: ""
   name: ""
