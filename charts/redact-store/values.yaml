@@ -134,5 +134,10 @@ extraVolumeMounts:
   default:
   - name: config
     mountPath: /usr/local/bin/config
+  - name: tls
+    mountPath: /usr/local/bin/config/tls/server
 
-extraVolumes: []
+extraVolumes:
+- name: tls
+  secret:
+    secretName: tls-pauwelslabs-com-p

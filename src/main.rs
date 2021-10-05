@@ -272,16 +272,17 @@ async fn main() {
         let client_ca_path = config.get_str("tls.client.ca.path").unwrap();
 
         let mut rcs = RootCertStore::empty();
-        let file = File::open(&client_ca_path).unwrap();
-        let mut reader = io::BufReader::new(file);
-        rcs.add_pem_file(&mut reader)
-            .map_err(|_err| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Failed to load root cert store from {}", &client_ca_path),
-                )
-            })
-            .unwrap();
+        if let Ok(file) = File::open(&client_ca_path) {
+            let mut reader = io::BufReader::new(file);
+            rcs.add_pem_file(&mut reader)
+                .map_err(|_err| {
+                    io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("Failed to load root cert store from {}", &client_ca_path),
+                    )
+                })
+                .unwrap();
+        }
 
         let mut config = ServerConfig::new(AllowAnyAuthenticatedClient::new(rcs));
         // Select a certificate to use.
