@@ -75,168 +75,178 @@ async fn main() {
         }
     };
 
-    // Make the storer TLS CA key if it doesn't exist
-    let ca_key_path = config.get_str("tls.ca.key.path").unwrap();
-    let ca_key = match File::open(&ca_key_path) {
-        Ok(mut f) => {
-            let mut pem = String::new();
-            f.read_to_string(&mut pem).unwrap();
-            let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
-            let seed_bytes: OctetString =
-                TryInto::<Any>::try_into(pkd.private_key_info().private_key)
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-            // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
-            //                  determine the proper key type; assuming NaCl Ed25519 for now
-            let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
-            Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
-        }
-        Err(e) => match e.kind() {
-            ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
-            _ => Err(e),
-        },
-    }
-    .unwrap();
-
-    // Make the storer TLS CA cert and PKCS12 file if it doesn't exist
-    let ca_cert_o = config.get_str("tls.ca.certificate.o").unwrap();
-    let ca_cert_ou = config.get_str("tls.ca.certificate.ou").unwrap();
-    let ca_cert_cn = config.get_str("tls.ca.certificate.cn").unwrap();
-    let ca_cert_dn = DistinguishedName {
-        o: &ca_cert_o,
-        ou: &ca_cert_ou,
-        cn: &ca_cert_cn,
-    };
-    if let Err(e) = File::open(config.get_str("tls.ca.certificate.path").unwrap()) {
-        match e.kind() {
-            ErrorKind::NotFound => {
-                let not_before = Utc::now();
-                let not_after = not_before
-                    + Duration::days(config.get_int("tls.ca.certificate.expires_in").unwrap());
-                let tls_cert = redact_crypto::cert::setup_cert::<_, PublicAsymmetricKey>(
-                    &ca_key,
-                    None,
-                    &ca_cert_dn,
-                    None,
-                    not_before,
-                    not_after,
-                    true,
-                    None,
-                )
-                .unwrap();
-                let mut tls_cert_vec: Vec<u8> = vec![];
-                let mut tls_cert_file =
-                    File::create(config.get_str("tls.ca.certificate.path").unwrap()).unwrap();
-                tls_cert_vec
-                    .write_all(b"-----BEGIN CERTIFICATE-----\n")
-                    .unwrap();
-                base64::encode(tls_cert)
-                    .as_bytes()
-                    .chunks(64)
-                    .for_each(|chunk| {
-                        tls_cert_vec.write_all(chunk).unwrap();
-                        tls_cert_vec.write_all(b"\n").unwrap();
-                    });
-                tls_cert_vec
-                    .write_all(b"-----END CERTIFICATE-----\n")
-                    .unwrap();
-                tls_cert_file.write_all(&tls_cert_vec).unwrap();
-
-                let storer_tls_key_bs = ca_key.byte_source();
-                let mut storer_tls_key_bytes = vec![0x04, 0x20];
-                storer_tls_key_bytes.extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
-                let storer_tls_key_pkcs8 =
-                    PrivateKeyInfo::new(ca_key.algorithm_identifier(), &storer_tls_key_bytes);
-                let mut pkcs8_file = File::create(&ca_key_path).unwrap();
-                pkcs8_file
-                    .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
-                    .unwrap();
+    let generate_crypto_material = config.get_bool("tls.generate").unwrap();
+    if generate_crypto_material {
+        // Make the storer TLS CA key if it doesn't exist
+        let ca_key_path = config.get_str("tls.ca.key.path").unwrap();
+        let ca_key = match File::open(&ca_key_path) {
+            Ok(mut f) => {
+                let mut pem = String::new();
+                f.read_to_string(&mut pem).unwrap();
+                let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
+                let seed_bytes: OctetString =
+                    TryInto::<Any>::try_into(pkd.private_key_info().private_key)
+                        .unwrap()
+                        .try_into()
+                        .unwrap();
+                // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
+                //                  determine the proper key type; assuming NaCl Ed25519 for now
+                let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
+                Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
             }
-            _ => Err(e).unwrap(),
+            Err(e) => match e.kind() {
+                ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
+                _ => Err(e),
+            },
         }
-    }
+        .unwrap();
 
-    // Make the storer client TLS key if it doesn't exist
-    let storer_key_path = config.get_str("tls.server.key.path").unwrap();
-    let ca_key = match File::open(&storer_key_path) {
-        Ok(mut f) => {
-            let mut pem = String::new();
-            f.read_to_string(&mut pem).unwrap();
-            let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
-            let seed_bytes: OctetString =
-                TryInto::<Any>::try_into(pkd.private_key_info().private_key)
-                    .unwrap()
-                    .try_into()
+        // Make the storer TLS CA cert and PKCS12 file if it doesn't exist
+        let ca_cert_o = config.get_str("tls.ca.certificate.o").unwrap();
+        let ca_cert_ou = config.get_str("tls.ca.certificate.ou").unwrap();
+        let ca_cert_cn = config.get_str("tls.ca.certificate.cn").unwrap();
+        let ca_cert_dn = DistinguishedName {
+            o: &ca_cert_o,
+            ou: &ca_cert_ou,
+            cn: &ca_cert_cn,
+        };
+        if let Err(e) = File::open(config.get_str("tls.ca.certificate.path").unwrap()) {
+            match e.kind() {
+                ErrorKind::NotFound => {
+                    let not_before = Utc::now();
+                    let not_after = not_before
+                        + Duration::days(config.get_int("tls.ca.certificate.expires_in").unwrap());
+                    let tls_cert = redact_crypto::cert::setup_cert::<_, PublicAsymmetricKey>(
+                        &ca_key,
+                        None,
+                        &ca_cert_dn,
+                        None,
+                        not_before,
+                        not_after,
+                        true,
+                        None,
+                    )
                     .unwrap();
-            // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
-            //                  determine the proper key type; assuming NaCl Ed25519 for now
-            let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
-            Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
-        }
-        Err(e) => match e.kind() {
-            ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
-            _ => Err(e),
-        },
-    }
-    .unwrap();
+                    let mut tls_cert_vec: Vec<u8> = vec![];
+                    let mut tls_cert_file =
+                        File::create(config.get_str("tls.ca.certificate.path").unwrap()).unwrap();
+                    tls_cert_vec
+                        .write_all(b"-----BEGIN CERTIFICATE-----\n")
+                        .unwrap();
+                    base64::encode(tls_cert)
+                        .as_bytes()
+                        .chunks(64)
+                        .for_each(|chunk| {
+                            tls_cert_vec.write_all(chunk).unwrap();
+                            tls_cert_vec.write_all(b"\n").unwrap();
+                        });
+                    tls_cert_vec
+                        .write_all(b"-----END CERTIFICATE-----\n")
+                        .unwrap();
+                    tls_cert_file.write_all(&tls_cert_vec).unwrap();
 
-    // Make the storer TLS cert and PKCS12 file if it doesn't exist
-    if let Err(e) = File::open(config.get_str("tls.server.certificate.path").unwrap()) {
-        match e.kind() {
-            ErrorKind::NotFound => {
-                let storer_cert_o = config.get_str("tls.server.certificate.o").unwrap();
-                let storer_cert_ou = config.get_str("tls.server.certificate.ou").unwrap();
-                let storer_cert_cn = config.get_str("tls.server.certificate.cn").unwrap();
-                let storer_cert_dn = DistinguishedName {
-                    o: &storer_cert_o,
-                    ou: &storer_cert_ou,
-                    cn: &storer_cert_cn,
-                };
-                let not_before = Utc::now();
-                let not_after = not_before
-                    + Duration::days(config.get_int("tls.server.certificate.expires_in").unwrap());
-                let storer_key = SodiumOxideEd25519SecretAsymmetricKey::new();
-                let tls_cert = redact_crypto::cert::setup_cert(
-                    &ca_key,
-                    Some(&storer_key.public_key().unwrap()),
-                    &ca_cert_dn,
-                    Some(&storer_cert_dn),
-                    not_before,
-                    not_after,
-                    false,
-                    Some(&["localhost"]),
-                )
-                .unwrap();
-                let mut tls_cert_vec: Vec<u8> = vec![];
-                let mut tls_cert_file =
-                    File::create(config.get_str("tls.server.certificate.path").unwrap()).unwrap();
-                tls_cert_vec
-                    .write_all(b"-----BEGIN CERTIFICATE-----\n")
-                    .unwrap();
-                base64::encode(tls_cert)
-                    .as_bytes()
-                    .chunks(64)
-                    .for_each(|chunk| {
-                        tls_cert_vec.write_all(chunk).unwrap();
-                        tls_cert_vec.write_all(b"\n").unwrap();
-                    });
-                tls_cert_vec
-                    .write_all(b"-----END CERTIFICATE-----\n")
-                    .unwrap();
-                tls_cert_file.write_all(&tls_cert_vec).unwrap();
-
-                let storer_tls_key_bs = storer_key.byte_source();
-                let mut storer_tls_key_bytes = vec![0x04, 0x20];
-                storer_tls_key_bytes.extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
-                let storer_tls_key_pkcs8 =
-                    PrivateKeyInfo::new(storer_key.algorithm_identifier(), &storer_tls_key_bytes);
-                let mut pkcs8_file = File::create(&storer_key_path).unwrap();
-                pkcs8_file
-                    .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
-                    .unwrap();
+                    let storer_tls_key_bs = ca_key.byte_source();
+                    let mut storer_tls_key_bytes = vec![0x04, 0x20];
+                    storer_tls_key_bytes
+                        .extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
+                    let storer_tls_key_pkcs8 =
+                        PrivateKeyInfo::new(ca_key.algorithm_identifier(), &storer_tls_key_bytes);
+                    let mut pkcs8_file = File::create(&ca_key_path).unwrap();
+                    pkcs8_file
+                        .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
+                        .unwrap();
+                }
+                _ => Err(e).unwrap(),
             }
-            _ => Err(e).unwrap(),
+        }
+
+        // Make the storer client TLS key if it doesn't exist
+        let storer_key_path = config.get_str("tls.server.key.path").unwrap();
+        let ca_key = match File::open(&storer_key_path) {
+            Ok(mut f) => {
+                let mut pem = String::new();
+                f.read_to_string(&mut pem).unwrap();
+                let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
+                let seed_bytes: OctetString =
+                    TryInto::<Any>::try_into(pkd.private_key_info().private_key)
+                        .unwrap()
+                        .try_into()
+                        .unwrap();
+                // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
+                //                  determine the proper key type; assuming NaCl Ed25519 for now
+                let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
+                Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
+            }
+            Err(e) => match e.kind() {
+                ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
+                _ => Err(e),
+            },
+        }
+        .unwrap();
+
+        // Make the storer TLS cert and PKCS12 file if it doesn't exist
+        if let Err(e) = File::open(config.get_str("tls.server.certificate.path").unwrap()) {
+            match e.kind() {
+                ErrorKind::NotFound => {
+                    let storer_cert_o = config.get_str("tls.server.certificate.o").unwrap();
+                    let storer_cert_ou = config.get_str("tls.server.certificate.ou").unwrap();
+                    let storer_cert_cn = config.get_str("tls.server.certificate.cn").unwrap();
+                    let storer_cert_dn = DistinguishedName {
+                        o: &storer_cert_o,
+                        ou: &storer_cert_ou,
+                        cn: &storer_cert_cn,
+                    };
+                    let not_before = Utc::now();
+                    let not_after = not_before
+                        + Duration::days(
+                            config.get_int("tls.server.certificate.expires_in").unwrap(),
+                        );
+                    let storer_key = SodiumOxideEd25519SecretAsymmetricKey::new();
+                    let tls_cert = redact_crypto::cert::setup_cert(
+                        &ca_key,
+                        Some(&storer_key.public_key().unwrap()),
+                        &ca_cert_dn,
+                        Some(&storer_cert_dn),
+                        not_before,
+                        not_after,
+                        false,
+                        Some(&["localhost"]),
+                    )
+                    .unwrap();
+                    let mut tls_cert_vec: Vec<u8> = vec![];
+                    let mut tls_cert_file =
+                        File::create(config.get_str("tls.server.certificate.path").unwrap())
+                            .unwrap();
+                    tls_cert_vec
+                        .write_all(b"-----BEGIN CERTIFICATE-----\n")
+                        .unwrap();
+                    base64::encode(tls_cert)
+                        .as_bytes()
+                        .chunks(64)
+                        .for_each(|chunk| {
+                            tls_cert_vec.write_all(chunk).unwrap();
+                            tls_cert_vec.write_all(b"\n").unwrap();
+                        });
+                    tls_cert_vec
+                        .write_all(b"-----END CERTIFICATE-----\n")
+                        .unwrap();
+                    tls_cert_file.write_all(&tls_cert_vec).unwrap();
+
+                    let storer_tls_key_bs = storer_key.byte_source();
+                    let mut storer_tls_key_bytes = vec![0x04, 0x20];
+                    storer_tls_key_bytes
+                        .extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
+                    let storer_tls_key_pkcs8 = PrivateKeyInfo::new(
+                        storer_key.algorithm_identifier(),
+                        &storer_tls_key_bytes,
+                    );
+                    let mut pkcs8_file = File::create(&storer_key_path).unwrap();
+                    pkcs8_file
+                        .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
+                        .unwrap();
+                }
+                _ => Err(e).unwrap(),
+            }
         }
     }
 
@@ -284,7 +294,7 @@ async fn main() {
                 .unwrap();
         }
 
-        let mut config = ServerConfig::new(AllowAnyAuthenticatedClient::new(rcs));
+        let mut server_config = ServerConfig::new(AllowAnyAuthenticatedClient::new(rcs));
         // Select a certificate to use.
         let file = File::open(&cert_path).unwrap();
         let mut reader = io::BufReader::new(file);
@@ -296,6 +306,7 @@ async fn main() {
                 )
             })
             .unwrap();
+        let storer_key_path = config.get_str("tls.server.key.path").unwrap();
         let file = File::open(&storer_key_path).unwrap();
         let mut reader = io::BufReader::new(file);
         let keys = pemfile::pkcs8_private_keys(&mut reader)
@@ -316,11 +327,11 @@ async fn main() {
                 )
             })
             .unwrap();
-        config
+        server_config
             .set_single_cert(certs, key)
             .map_err(|err| io::Error::new(io::ErrorKind::Other, format!("{}", err)))
             .unwrap();
-        Arc::new(config)
+        Arc::new(server_config)
     };
 
     let socket_addr: SocketAddr = ([0, 0, 0, 0], port).into();
