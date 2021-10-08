@@ -102,23 +102,6 @@ dependencies = [
 
 [[package]]
 name = "bson"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "903a4f4c7aa97921f1703acac1fd524e9e082b3228edd34dde07758c0c92c672"
-dependencies = [
- "base64 0.13.0",
- "chrono",
- "hex",
- "lazy_static",
- "linked-hash-map",
- "rand 0.7.3",
- "serde 1.0.130",
- "serde_json",
- "uuid",
-]
-
-[[package]]
-name = "bson"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1dcc15cd0b9aff8e8326561dcf0bb6e56d0e559f3a4897f615b4a5075ab54c46"
@@ -1107,7 +1090,7 @@ dependencies = [
  "async-trait",
  "base64 0.13.0",
  "bitflags",
- "bson 2.0.0",
+ "bson",
  "chrono",
  "derivative",
  "futures-core",
@@ -1662,7 +1645,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "base64 0.13.0",
- "bson 1.2.3",
+ "bson",
  "chrono",
  "der 0.5.0-pre",
  "env_logger 0.9.0",
