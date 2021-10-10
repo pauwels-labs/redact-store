@@ -15,12 +15,9 @@ tls:
       ou: tls
       cn: storer
       expires_in: 365
-      path: "tls/server/cert/cert.pem"
+      path: "tls/server/cert/server.pem"
     key:
-      path: "tls/server/key/key.pem"
-  client:
-    ca:
-      path: "tls/client/ca/ca.pem"
+      path: "tls/server/key/server.pem"
 google:
   storage:
     bucket:

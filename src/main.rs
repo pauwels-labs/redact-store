@@ -26,7 +26,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
+use tokio_rustls::rustls::{Certificate, PrivateKey};
 use warp::Filter;
 
 #[derive(Serialize)]
@@ -302,22 +302,7 @@ async fn main() {
     // Build TLS configuration.
     let tls_config = {
         let cert_path = config.get_str("tls.server.certificate.path").unwrap();
-        let client_ca_path = config.get_str("tls.client.ca.path").unwrap();
 
-        let mut rcs = RootCertStore::empty();
-        if let Ok(file) = File::open(&client_ca_path) {
-            let mut reader = io::BufReader::new(file);
-            rcs.add_pem_file(&mut reader)
-                .map_err(|_err| {
-                    io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("Failed to load root cert store from {}", &client_ca_path),
-                    )
-                })
-                .unwrap();
-        }
-
-        //let mut server_config = ServerConfig::new(AllowAnyAuthenticatedClient::new(rcs));
         // Select a certificate to use.
         let file = File::open(&cert_path).unwrap();
         let mut reader = io::BufReader::new(file);
