@@ -3,6 +3,7 @@ mod error_handler;
 mod routes;
 
 use crate::error_handler::handle_rejection;
+use bootstrap::AllowAnyClient;
 use chrono::{prelude::*, Duration};
 use der::asn1::{Any, OctetString};
 use pkcs8::{PrivateKeyDocument, PrivateKeyInfo};
@@ -16,15 +17,16 @@ use redact_crypto::{
 };
 use redact_crypto::{storage::NonIndexedTypeStorer::GoogleCloud, HasPublicKey};
 use redact_crypto::{x509::DistinguishedName, MongoStorer, TypeStorer};
-use rustls::{internal::pemfile, AllowAnyAuthenticatedClient, RootCertStore, ServerConfig};
 use serde::Serialize;
 use std::{
     convert::TryInto,
     fs::File,
     io::{self, ErrorKind, Read, Write},
     net::SocketAddr,
+    path::Path,
     sync::Arc,
 };
+use tokio_rustls::rustls::{Certificate, PrivateKey, RootCertStore};
 use warp::Filter;
 
 #[derive(Serialize)]
@@ -95,13 +97,30 @@ async fn main() {
                 Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
             }
             Err(e) => match e.kind() {
-                ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
+                ErrorKind::NotFound => {
+                    let ca_key = SodiumOxideEd25519SecretAsymmetricKey::new();
+                    let ca_key_bs = ca_key.byte_source();
+                    let mut ca_key_bytes = vec![0x04, 0x20];
+                    ca_key_bytes.extend_from_slice(&ca_key_bs.get().unwrap()[0..32]);
+                    let ca_key_pkcs8 =
+                        PrivateKeyInfo::new(ca_key.algorithm_identifier(), &ca_key_bytes);
+                    let path = Path::new(&ca_key_path);
+                    let path_parent = path.parent();
+                    if let Some(path) = path_parent {
+                        std::fs::create_dir_all(path).unwrap();
+                    }
+                    let mut pkcs8_file = File::create(&ca_key_path).unwrap();
+                    pkcs8_file
+                        .write_all((*ca_key_pkcs8.to_pem()).as_bytes())
+                        .unwrap();
+                    Ok(ca_key)
+                }
                 _ => Err(e),
             },
         }
         .unwrap();
 
-        // Make the storer TLS CA cert and PKCS12 file if it doesn't exist
+        // Make the storer TLS CA cert if it doesn't exist
         let ca_cert_o = config.get_str("tls.ca.certificate.o").unwrap();
         let ca_cert_ou = config.get_str("tls.ca.certificate.ou").unwrap();
         let ca_cert_cn = config.get_str("tls.ca.certificate.cn").unwrap();
@@ -127,9 +146,14 @@ async fn main() {
                         None,
                     )
                     .unwrap();
+                    let path_str = &config.get_str("tls.ca.certificate.path").unwrap();
+                    let path = Path::new(path_str);
+                    let path_parent = path.parent();
+                    if let Some(path) = path_parent {
+                        std::fs::create_dir_all(path).unwrap();
+                    }
                     let mut tls_cert_vec: Vec<u8> = vec![];
-                    let mut tls_cert_file =
-                        File::create(config.get_str("tls.ca.certificate.path").unwrap()).unwrap();
+                    let mut tls_cert_file = File::create(path).unwrap();
                     tls_cert_vec
                         .write_all(b"-----BEGIN CERTIFICATE-----\n")
                         .unwrap();
@@ -144,17 +168,6 @@ async fn main() {
                         .write_all(b"-----END CERTIFICATE-----\n")
                         .unwrap();
                     tls_cert_file.write_all(&tls_cert_vec).unwrap();
-
-                    let storer_tls_key_bs = ca_key.byte_source();
-                    let mut storer_tls_key_bytes = vec![0x04, 0x20];
-                    storer_tls_key_bytes
-                        .extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
-                    let storer_tls_key_pkcs8 =
-                        PrivateKeyInfo::new(ca_key.algorithm_identifier(), &storer_tls_key_bytes);
-                    let mut pkcs8_file = File::create(&ca_key_path).unwrap();
-                    pkcs8_file
-                        .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
-                        .unwrap();
                 }
                 _ => Err(e).unwrap(),
             }
@@ -162,7 +175,7 @@ async fn main() {
 
         // Make the storer client TLS key if it doesn't exist
         let storer_key_path = config.get_str("tls.server.key.path").unwrap();
-        let ca_key = match File::open(&storer_key_path) {
+        let storer_key = match File::open(&storer_key_path) {
             Ok(mut f) => {
                 let mut pem = String::new();
                 f.read_to_string(&mut pem).unwrap();
@@ -178,13 +191,33 @@ async fn main() {
                 Ok(builder.build(Some(seed_bytes.as_bytes())).unwrap())
             }
             Err(e) => match e.kind() {
-                ErrorKind::NotFound => Ok(SodiumOxideEd25519SecretAsymmetricKey::new()),
+                ErrorKind::NotFound => {
+                    let storer_key = SodiumOxideEd25519SecretAsymmetricKey::new();
+                    let storer_tls_key_bs = storer_key.byte_source();
+                    let mut storer_tls_key_bytes = vec![0x04, 0x20];
+                    storer_tls_key_bytes
+                        .extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
+                    let storer_tls_key_pkcs8 = PrivateKeyInfo::new(
+                        storer_key.algorithm_identifier(),
+                        &storer_tls_key_bytes,
+                    );
+                    let path = Path::new(&storer_key_path);
+                    let path_parent = path.parent();
+                    if let Some(path) = path_parent {
+                        std::fs::create_dir_all(path).unwrap();
+                    }
+                    let mut pkcs8_file = File::create(&storer_key_path).unwrap();
+                    pkcs8_file
+                        .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
+                        .unwrap();
+                    Ok(storer_key)
+                }
                 _ => Err(e),
             },
         }
         .unwrap();
 
-        // Make the storer TLS cert and PKCS12 file if it doesn't exist
+        // Make the storer TLS cert if it doesn't exist
         if let Err(e) = File::open(config.get_str("tls.server.certificate.path").unwrap()) {
             match e.kind() {
                 ErrorKind::NotFound => {
@@ -201,7 +234,6 @@ async fn main() {
                         + Duration::days(
                             config.get_int("tls.server.certificate.expires_in").unwrap(),
                         );
-                    let storer_key = SodiumOxideEd25519SecretAsymmetricKey::new();
                     let tls_cert = redact_crypto::cert::setup_cert(
                         &ca_key,
                         Some(&storer_key.public_key().unwrap()),
@@ -213,10 +245,14 @@ async fn main() {
                         Some(&["localhost"]),
                     )
                     .unwrap();
+                    let path_str = &config.get_str("tls.server.certificate.path").unwrap();
+                    let path = Path::new(path_str);
+                    let path_parent = path.parent();
+                    if let Some(path) = path_parent {
+                        std::fs::create_dir_all(path).unwrap();
+                    }
                     let mut tls_cert_vec: Vec<u8> = vec![];
-                    let mut tls_cert_file =
-                        File::create(config.get_str("tls.server.certificate.path").unwrap())
-                            .unwrap();
+                    let mut tls_cert_file = File::create(path_str).unwrap();
                     tls_cert_vec
                         .write_all(b"-----BEGIN CERTIFICATE-----\n")
                         .unwrap();
@@ -231,19 +267,6 @@ async fn main() {
                         .write_all(b"-----END CERTIFICATE-----\n")
                         .unwrap();
                     tls_cert_file.write_all(&tls_cert_vec).unwrap();
-
-                    let storer_tls_key_bs = storer_key.byte_source();
-                    let mut storer_tls_key_bytes = vec![0x04, 0x20];
-                    storer_tls_key_bytes
-                        .extend_from_slice(&storer_tls_key_bs.get().unwrap()[0..32]);
-                    let storer_tls_key_pkcs8 = PrivateKeyInfo::new(
-                        storer_key.algorithm_identifier(),
-                        &storer_tls_key_bytes,
-                    );
-                    let mut pkcs8_file = File::create(&storer_key_path).unwrap();
-                    pkcs8_file
-                        .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
-                        .unwrap();
                 }
                 _ => Err(e).unwrap(),
             }
@@ -294,22 +317,25 @@ async fn main() {
                 .unwrap();
         }
 
-        let mut server_config = ServerConfig::new(AllowAnyAuthenticatedClient::new(rcs));
+        //let mut server_config = ServerConfig::new(AllowAnyAuthenticatedClient::new(rcs));
         // Select a certificate to use.
         let file = File::open(&cert_path).unwrap();
         let mut reader = io::BufReader::new(file);
-        let certs = pemfile::certs(&mut reader)
+        let certs = rustls_pemfile::certs(&mut reader)
             .map_err(|_err| {
                 io::Error::new(
                     io::ErrorKind::Other,
                     format!("Cannot load certificate from {}", &cert_path),
                 )
             })
-            .unwrap();
+            .unwrap()
+            .into_iter()
+            .map(Certificate)
+            .collect();
         let storer_key_path = config.get_str("tls.server.key.path").unwrap();
         let file = File::open(&storer_key_path).unwrap();
         let mut reader = io::BufReader::new(file);
-        let keys = pemfile::pkcs8_private_keys(&mut reader)
+        let keys = rustls_pemfile::pkcs8_private_keys(&mut reader)
             .map_err(|_err| {
                 io::Error::new(
                     io::ErrorKind::Other,
@@ -317,20 +343,20 @@ async fn main() {
                 )
             })
             .unwrap();
-        let key = keys
-            .into_iter()
-            .next()
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("No keys found in the private key file {}", storer_key_path),
-                )
-            })
-            .unwrap();
-        server_config
-            .set_single_cert(certs, key)
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, format!("{}", err)))
-            .unwrap();
+        let key = PrivateKey(
+            keys.into_iter()
+                .next()
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::Other,
+                        format!("No keys found in the private key file {}", storer_key_path),
+                    )
+                })
+                .unwrap(),
+        );
+        let mut server_config =
+            tokio_rustls::rustls::ServerConfig::new(Arc::new(AllowAnyClient {}));
+        server_config.set_single_cert(certs, key).unwrap();
         Arc::new(server_config)
     };
 

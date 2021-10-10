@@ -2,9 +2,9 @@ use crate::routes::error::{
     BadRequestRejection, CryptoErrorRejection, NotFoundRejection, X509ErrorRejection,
 };
 use redact_crypto::{CryptoError, IndexedStorer, Type};
-use rustls::Certificate;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio_rustls::rustls::Certificate;
 use warp::{Filter, Rejection, Reply};
 
 #[derive(Serialize, Deserialize)]
