@@ -15,7 +15,7 @@ use redact_crypto::{
     storage::gcs::GoogleCloudStorer,
     Builder, HasAlgorithmIdentifier, HasByteSource, PublicAsymmetricKey,
 };
-use redact_crypto::{storage::NonIndexedTypeStorer::GoogleCloud, HasPublicKey};
+use redact_crypto::{storage::NonIndexedTypeStorer, HasPublicKey};
 use redact_crypto::{x509::DistinguishedName, MongoStorer, TypeStorer};
 use serde::Serialize;
 use std::{
@@ -279,7 +279,7 @@ async fn main() {
     let mongo_storer = Arc::new(MongoStorer::new(&db_url, &db_name));
 
     let storage_bucket_name = config.get_str("google.storage.bucket.name").unwrap();
-    let google_storer = Arc::new(TypeStorer::NonIndexedTypeStorer(GoogleCloud(
+    let google_storer = Arc::new(TypeStorer::NonIndexed(NonIndexedTypeStorer::GoogleCloud(
         GoogleCloudStorer::new(storage_bucket_name),
     )));
 
