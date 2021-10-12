@@ -1,3 +1,5 @@
+server:
+  port: 8081
 tls:
   generate: true
   ca:
@@ -18,15 +20,9 @@ tls:
       path: "tls/server/cert/server.pem"
     key:
       path: "tls/server/key/server.pem"
-google:
-  storage:
-    bucket:
-      name: default_bucket_hw
 db:
   url: ""
   name: ""
-server:
-  port: 8081
 google:
   storage:
     bucket:
