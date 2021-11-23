@@ -37,7 +37,7 @@ futures = "0.3.17"
 pretty_env_logger = "0.4"
 async-trait = "0.1.51"
 async-recursion = "0.3.2"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "d2250f2d5875a2edc341226dc41cc354d74572aa" }
+redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "067926b56e0afbea0a53573d294fc233e893c7f7" }
 tokio-rustls = "0.22"
 hyper = "0.14.15"
 x509-parser = "0.12.0"
