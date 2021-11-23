@@ -6,7 +6,7 @@ use crate::error_handler::handle_rejection;
 use bootstrap::AllowAnyClient;
 use chrono::{prelude::*, Duration};
 use der::asn1::{Any, OctetString};
-use pkcs8::{PrivateKeyDocument, PrivateKeyInfo};
+use pkcs8::{PrivateKeyDocument, PrivateKeyInfo, DecodePrivateKey};
 use redact_config::Configurator;
 use redact_crypto::{
     key::sodiumoxide::{
@@ -85,7 +85,7 @@ async fn main() {
             Ok(mut f) => {
                 let mut pem = String::new();
                 f.read_to_string(&mut pem).unwrap();
-                let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
+                let pkd = PrivateKeyDocument::from_pkcs8_pem(&pem).unwrap();
                 let seed_bytes: OctetString =
                     TryInto::<Any>::try_into(pkd.private_key_info().private_key)
                         .unwrap()

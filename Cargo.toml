@@ -26,24 +26,24 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.10.1", features = ["macros", "rt-multi-thread"] }
-warp = { version = "0.3.1", features = ["tls"] }
+tokio = { version = "1.14.0", features = ["macros", "rt-multi-thread"] }
+warp = { version = "0.3.2", features = ["tls"] }
 redact-config = "1.0.1"
-serde = { version = "1.0.125", features = ["derive"] }
-serde_json = "1.0.64"
-mongodb = "2.0.0-beta.3"
-bson = "1.1.0"
-futures = "0.3.16"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.71"
+mongodb = "2.0.2"
+bson = "2.0.1"
+futures = "0.3.17"
 pretty_env_logger = "0.4"
 async-trait = "0.1.51"
 async-recursion = "0.3.2"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "7555ed4150d1079307ea34e9e443ea7693e1fd8e" }
-tokio-rustls = "0.22.0"
-hyper = "0.14.13"
+redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "eccd399e8756650b43e92fb2b47d5eaece62480a" }
+tokio-rustls = "0.22"
+hyper = "0.14.15"
 x509-parser = "0.12.0"
 chrono = "0.4.19"
 base64 = "0.13.0"
-pkcs8 = { version = "0.7.5", features = ["pem"] }
+pkcs8 = { version = "0.8.0", features = ["pem"] }
 der = { git = "https://github.com/rustcrypto/formats.git", rev = "566abc5ef466a6b85d37ec8a779500f906dff8ce" }
 log = "0.4"
 env_logger = "0.9"
