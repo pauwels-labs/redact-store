@@ -213,11 +213,6 @@ dependencies = [
 
 [[package]]
 name = "const-oid"
-version = "0.6.1"
-source = "git+https://github.com/rustcrypto/formats.git?rev=a06d563ce3b5637f1f53c216ed1d1a8d11c94fff#a06d563ce3b5637f1f53c216ed1d1a8d11c94fff"
-
-[[package]]
-name = "const-oid"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d355758f44afa81c21e66e1301d47cbffbbcde4b405cbe46b8b19f213abf9f60"
@@ -306,25 +301,11 @@ checksum = "3ee2393c4a91429dffb4bedf19f4d6abf27d8a732c8ce4980305d782e5426d57"
 
 [[package]]
 name = "der"
-version = "0.5.0-pre"
-source = "git+https://github.com/rustcrypto/formats.git?rev=566abc5ef466a6b85d37ec8a779500f906dff8ce#566abc5ef466a6b85d37ec8a779500f906dff8ce"
-
-[[package]]
-name = "der"
-version = "0.5.0-pre"
-source = "git+https://github.com/rustcrypto/formats.git?rev=a06d563ce3b5637f1f53c216ed1d1a8d11c94fff#a06d563ce3b5637f1f53c216ed1d1a8d11c94fff"
-dependencies = [
- "const-oid 0.6.1",
- "der_derive",
-]
-
-[[package]]
-name = "der"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6919815d73839e7ad218de758883aae3a257ba6759ce7a9992501efbb53d705c"
 dependencies = [
- "const-oid 0.7.0",
+ "const-oid",
  "pem-rfc7468",
 ]
 
@@ -350,17 +331,6 @@ dependencies = [
  "num-bigint 0.4.2",
  "num-traits 0.2.14",
  "rusticata-macros",
-]
-
-[[package]]
-name = "der_derive"
-version = "0.5.0-pre"
-source = "git+https://github.com/rustcrypto/formats.git?rev=a06d563ce3b5637f1f53c216ed1d1a8d11c94fff#a06d563ce3b5637f1f53c216ed1d1a8d11c94fff"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
- "synstructure",
 ]
 
 [[package]]
@@ -1409,7 +1379,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cabda3fb821068a9a4fab19a683eac3af12edf0f34b94a8be53c4972b8149d0"
 dependencies = [
- "der 0.5.1",
+ "der",
  "spki",
  "zeroize",
 ]
@@ -1554,7 +1524,7 @@ dependencies = [
 [[package]]
 name = "redact-crypto"
 version = "0.2.0"
-source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=eccd399e8756650b43e92fb2b47d5eaece62480a#eccd399e8756650b43e92fb2b47d5eaece62480a"
+source = "git+https://github.com/pauwels-labs/redact-crypto.git?rev=d2250f2d5875a2edc341226dc41cc354d74572aa#d2250f2d5875a2edc341226dc41cc354d74572aa"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -1562,7 +1532,7 @@ dependencies = [
  "chrono",
  "cloud-storage",
  "cookie-factory",
- "der 0.5.0-pre (git+https://github.com/rustcrypto/formats.git?rev=a06d563ce3b5637f1f53c216ed1d1a8d11c94fff)",
+ "der",
  "futures",
  "hex",
  "mockall",
@@ -1591,7 +1561,7 @@ dependencies = [
  "base64 0.13.0",
  "bson",
  "chrono",
- "der 0.5.0-pre (git+https://github.com/rustcrypto/formats.git?rev=566abc5ef466a6b85d37ec8a779500f906dff8ce)",
+ "der",
  "env_logger 0.9.0",
  "futures",
  "hyper",
@@ -2023,7 +1993,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8a277a21925310de1d31bb6b021da3550b00e9127096ef84ee38f44609925c4"
 dependencies = [
  "base64ct",
- "der 0.5.1",
+ "der",
 ]
 
 [[package]]
@@ -2084,18 +2054,6 @@ checksum = "a4eac2e6c19f5c3abc0c229bea31ff0b9b091c7b14990e8924b92902a303a0c0"
 dependencies = [
  "proc-macro2",
  "quote",
- "unicode-xid",
-]
-
-[[package]]
-name = "synstructure"
-version = "0.12.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "474aaa926faa1603c40b7885a9eaea29b444d1cb2850cb7c0e37bb1a4182f4fa"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
  "unicode-xid",
 ]
 

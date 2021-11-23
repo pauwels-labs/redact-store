@@ -37,14 +37,14 @@ futures = "0.3.17"
 pretty_env_logger = "0.4"
 async-trait = "0.1.51"
 async-recursion = "0.3.2"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "eccd399e8756650b43e92fb2b47d5eaece62480a" }
+redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto.git", rev = "d2250f2d5875a2edc341226dc41cc354d74572aa" }
 tokio-rustls = "0.22"
 hyper = "0.14.15"
 x509-parser = "0.12.0"
 chrono = "0.4.19"
 base64 = "0.13.0"
-pkcs8 = { version = "0.8.0", features = ["pem"] }
-der = { git = "https://github.com/rustcrypto/formats.git", rev = "566abc5ef466a6b85d37ec8a779500f906dff8ce" }
+pkcs8 = { version = "0.8.0", features = ["pem", "alloc"] }
+der = "0.5.1"
 log = "0.4"
 env_logger = "0.9"
 rustls-pemfile = "0.2.1"

@@ -6,7 +6,7 @@ use crate::error_handler::handle_rejection;
 use bootstrap::AllowAnyClient;
 use chrono::{prelude::*, Duration};
 use der::asn1::{Any, OctetString};
-use pkcs8::{PrivateKeyDocument, PrivateKeyInfo, DecodePrivateKey};
+use pkcs8::{PrivateKeyDocument, PrivateKeyInfo};
 use redact_config::Configurator;
 use redact_crypto::{
     key::sodiumoxide::{
@@ -28,6 +28,7 @@ use std::{
 };
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 use warp::Filter;
+use der::Document;
 
 #[derive(Serialize)]
 struct Healthz {}
@@ -85,9 +86,9 @@ async fn main() {
             Ok(mut f) => {
                 let mut pem = String::new();
                 f.read_to_string(&mut pem).unwrap();
-                let pkd = PrivateKeyDocument::from_pkcs8_pem(&pem).unwrap();
+                let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
                 let seed_bytes: OctetString =
-                    TryInto::<Any>::try_into(pkd.private_key_info().private_key)
+                    TryInto::<Any>::try_into(pkd.decode().private_key)
                         .unwrap()
                         .try_into()
                         .unwrap();
@@ -111,7 +112,7 @@ async fn main() {
                     }
                     let mut pkcs8_file = File::create(&ca_key_path).unwrap();
                     pkcs8_file
-                        .write_all((*ca_key_pkcs8.to_pem()).as_bytes())
+                        .write_all((*ca_key_pkcs8.to_pem(pkcs8::LineEnding::LF).unwrap()).as_bytes())
                         .unwrap();
                     Ok(ca_key)
                 }
@@ -181,7 +182,7 @@ async fn main() {
                 f.read_to_string(&mut pem).unwrap();
                 let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
                 let seed_bytes: OctetString =
-                    TryInto::<Any>::try_into(pkd.private_key_info().private_key)
+                    TryInto::<Any>::try_into(pkd.decode().private_key)
                         .unwrap()
                         .try_into()
                         .unwrap();
@@ -208,7 +209,7 @@ async fn main() {
                     }
                     let mut pkcs8_file = File::create(&storer_key_path).unwrap();
                     pkcs8_file
-                        .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
+                        .write_all((*storer_tls_key_pkcs8.to_pem(pkcs8::LineEnding::LF).unwrap()).as_bytes())
                         .unwrap();
                     Ok(storer_key)
                 }
