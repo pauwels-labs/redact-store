@@ -1,26 +1,27 @@
 use futures::TryFutureExt;
-use std::{io, net::SocketAddr, sync::Arc};
+use std::{io, net::SocketAddr, sync::Arc, time::SystemTime};
 use tokio::net::TcpListener;
 use tokio_rustls::{
-    rustls::{ClientCertVerified, ClientCertVerifier, ServerConfig, Session},
+    rustls::{
+        server::{ClientCertVerified, ClientCertVerifier},
+        ServerConfig,
+    },
     TlsAcceptor,
 };
 use warp::hyper::service::{self, Service};
 
 pub struct AllowAnyClient {}
 impl ClientCertVerifier for AllowAnyClient {
-    fn client_auth_root_subjects(
-        &self,
-        _: Option<&tokio_rustls::webpki::DNSName>,
-    ) -> Option<tokio_rustls::rustls::DistinguishedNames> {
+    fn client_auth_root_subjects(&self) -> Option<tokio_rustls::rustls::DistinguishedNames> {
         Some(vec![])
     }
 
     fn verify_client_cert(
         &self,
+        _: &tokio_rustls::rustls::Certificate,
         _: &[tokio_rustls::rustls::Certificate],
-        _: Option<&tokio_rustls::webpki::DNSName>,
-    ) -> Result<tokio_rustls::rustls::ClientCertVerified, tokio_rustls::rustls::TLSError> {
+        _: SystemTime,
+    ) -> Result<ClientCertVerified, tokio_rustls::rustls::Error> {
         Ok(ClientCertVerified::assertion())
     }
 }
@@ -54,8 +55,8 @@ where
     // Hand off actual request handling to a new tokio task
     tokio::task::spawn(async move {
         // Pull the client certificate out of the TLS session
-        let (_, session) = stream.get_ref();
-        let client_cert = session.get_peer_certificates().and_then(|certs| {
+        let (_, server_connection) = stream.get_ref();
+        let client_cert = server_connection.peer_certificates().and_then(|certs| {
             if certs.is_empty() {
                 None
             } else {
