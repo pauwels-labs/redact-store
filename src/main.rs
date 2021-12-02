@@ -6,6 +6,7 @@ use crate::error_handler::handle_rejection;
 use bootstrap::AllowAnyClient;
 use chrono::{prelude::*, Duration};
 use der::asn1::{Any, OctetString};
+use der::Document;
 use pkcs8::{PrivateKeyDocument, PrivateKeyInfo};
 use redact_config::Configurator;
 use redact_crypto::{
@@ -86,11 +87,10 @@ async fn main() {
                 let mut pem = String::new();
                 f.read_to_string(&mut pem).unwrap();
                 let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
-                let seed_bytes: OctetString =
-                    TryInto::<Any>::try_into(pkd.private_key_info().private_key)
-                        .unwrap()
-                        .try_into()
-                        .unwrap();
+                let seed_bytes: OctetString = TryInto::<Any>::try_into(pkd.decode().private_key)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
                 // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
                 //                  determine the proper key type; assuming NaCl Ed25519 for now
                 let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
@@ -111,7 +111,9 @@ async fn main() {
                     }
                     let mut pkcs8_file = File::create(&ca_key_path).unwrap();
                     pkcs8_file
-                        .write_all((*ca_key_pkcs8.to_pem()).as_bytes())
+                        .write_all(
+                            (*ca_key_pkcs8.to_pem(pkcs8::LineEnding::LF).unwrap()).as_bytes(),
+                        )
                         .unwrap();
                     Ok(ca_key)
                 }
@@ -180,11 +182,10 @@ async fn main() {
                 let mut pem = String::new();
                 f.read_to_string(&mut pem).unwrap();
                 let pkd = PrivateKeyDocument::from_pem(&pem).unwrap();
-                let seed_bytes: OctetString =
-                    TryInto::<Any>::try_into(pkd.private_key_info().private_key)
-                        .unwrap()
-                        .try_into()
-                        .unwrap();
+                let seed_bytes: OctetString = TryInto::<Any>::try_into(pkd.decode().private_key)
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
                 // TODO(ajpauwels): Add a match on the AlgorithmIdentifier within the PEM file to
                 //                  determine the proper key type; assuming NaCl Ed25519 for now
                 let builder = SodiumOxideEd25519SecretAsymmetricKeyBuilder {};
@@ -208,7 +209,10 @@ async fn main() {
                     }
                     let mut pkcs8_file = File::create(&storer_key_path).unwrap();
                     pkcs8_file
-                        .write_all((*storer_tls_key_pkcs8.to_pem()).as_bytes())
+                        .write_all(
+                            (*storer_tls_key_pkcs8.to_pem(pkcs8::LineEnding::LF).unwrap())
+                                .as_bytes(),
+                        )
                         .unwrap();
                     Ok(storer_key)
                 }
@@ -339,9 +343,13 @@ async fn main() {
                 })
                 .unwrap(),
         );
-        let mut server_config =
-            tokio_rustls::rustls::ServerConfig::new(Arc::new(AllowAnyClient {}));
-        server_config.set_single_cert(certs, key).unwrap();
+        //let mut server_config =
+        //tokio_rustls::rustls::ServerConfig::new(Arc::new(AllowAnyClient {}));
+        let server_config = tokio_rustls::rustls::ServerConfig::builder()
+            .with_safe_defaults()
+            .with_client_cert_verifier(Arc::new(AllowAnyClient {}))
+            .with_single_cert(certs, key)
+            .unwrap();
         Arc::new(server_config)
     };
 
