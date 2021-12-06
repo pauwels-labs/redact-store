@@ -18,7 +18,8 @@ RUN cargo build --release --locked
 
 # Load source code to create final binary
 RUN rm -rf src
-RUN rm -rf target/release/deps/service
+RUN rm -rf target/release/deps/redact_store*
+RUN rm -rf target/release/redact-store*
 COPY src src
 RUN cargo build --release --locked
 
@@ -38,6 +39,6 @@ FROM alpine:3.13
 
 # Copy binary files
 WORKDIR /usr/local/bin
-COPY --from=builder /usr/src/service/target/release/redact-store service
+COPY --from=builder /usr/src/service/target/release/redact-store redact-store
 
-ENTRYPOINT ["service"]
+ENTRYPOINT ["redact-store"]
