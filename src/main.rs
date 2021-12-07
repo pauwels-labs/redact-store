@@ -29,6 +29,7 @@ use std::{
 };
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 use warp::Filter;
+use tokio::net;
 
 #[derive(Serialize)]
 struct Healthz {}
@@ -354,10 +355,11 @@ async fn main() {
     };
 
     let socket_addr: SocketAddr = ([0, 0, 0, 0], port).into();
+    let listener = net::TcpListener::bind(&socket_addr).await.unwrap();
     println!("starting server listening on ::{}", port);
     loop {
         if let Err(e) =
-            bootstrap::serve_mtls(socket_addr, tls_config.clone(), total_route.clone()).await
+            bootstrap::serve_mtls(&listener, tls_config.clone(), total_route.clone()).await
         {
             eprintln!("Problem accepting TLS connection: {}", e);
         }

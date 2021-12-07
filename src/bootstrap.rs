@@ -9,6 +9,7 @@ use tokio_rustls::{
     TlsAcceptor,
 };
 use warp::hyper::service::{self, Service};
+use tokio::net;
 
 pub struct AllowAnyClient {}
 impl ClientCertVerifier for AllowAnyClient {
@@ -27,7 +28,7 @@ impl ClientCertVerifier for AllowAnyClient {
 }
 
 pub async fn serve_mtls<F>(
-    socket_addr: impl Into<SocketAddr>,
+    listener: &net::TcpListener,
     tls_config: Arc<ServerConfig>,
     warp_filter: F,
 ) -> io::Result<()>
@@ -35,7 +36,6 @@ where
     F: warp::Filter + Clone + Send + Sync + 'static,
     <F::Future as futures::TryFuture>::Ok: warp::Reply,
 {
-    let listener = TcpListener::bind(&socket_addr.into()).await.unwrap();
     let tls_acceptor = TlsAcceptor::from(tls_config);
 
     // Wait for an incoming TCP connection
