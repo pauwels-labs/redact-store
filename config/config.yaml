@@ -16,6 +16,7 @@ tls:
       o: pauwels
       ou: tls
       cn: storer
+      subjectalternativename: "localhost"
       expires_in: 365
       path: "tls/server/cert/server.pem"
     key:
