@@ -8,13 +8,13 @@ RUN USER=root cargo new redact-store
 WORKDIR /usr/src/redact-store
 COPY Cargo.lock Cargo.toml ./
 RUN echo "fn main() {println!(\"if you see this, the image build failed and kept the depency-caching entrypoint. check your dockerfile and image build logs.\")}" > src/main.rs
-RUN cargo build --release --locked
+RUN cargo build --release
 
 # Load source code to create final binary
 RUN rm -rf src
 RUN rm -rf target/release/deps/redact_store*
 RUN rm -rf target/release/redact-store*
 COPY src src
-RUN cargo build --release --locked
+RUN cargo build --release
 
 ENTRYPOINT ["/usr/src/redact-store/target/release/redact-store"]
