@@ -82,4 +82,4 @@ spec:
       - name: config
         secret:
           secretName: {{ include "fullname" . }}-config
-      {{ (include "volumes" (dict "Values" .Values "ContainerName" (include "name" .))) | trim | indent 6 }}
+{{ (include "volumes" (dict "Values" .Values "ContainerName" (include "name" .))) | trim | indent 6 }}
