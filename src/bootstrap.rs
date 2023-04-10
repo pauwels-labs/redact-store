@@ -1,6 +1,6 @@
 use futures::TryFutureExt;
-use std::{io, net::SocketAddr, sync::Arc, time::SystemTime};
-use tokio::net::TcpListener;
+use std::{io, sync::Arc, time::SystemTime};
+use tokio::net;
 use tokio_rustls::{
     rustls::{
         server::{ClientCertVerified, ClientCertVerifier},
@@ -9,7 +9,6 @@ use tokio_rustls::{
     TlsAcceptor,
 };
 use warp::hyper::service::{self, Service};
-use tokio::net;
 
 pub struct AllowAnyClient {}
 impl ClientCertVerifier for AllowAnyClient {

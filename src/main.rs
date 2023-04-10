@@ -3,6 +3,7 @@ mod error_handler;
 mod routes;
 
 use crate::error_handler::handle_rejection;
+use base64::{engine::general_purpose as b64_general_purpose, Engine};
 use bootstrap::AllowAnyClient;
 use chrono::{prelude::*, Duration};
 use der::asn1::{Any, OctetString};
@@ -27,9 +28,9 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use tokio::net;
 use tokio_rustls::rustls::{Certificate, PrivateKey};
 use warp::Filter;
-use tokio::net;
 
 #[derive(Serialize)]
 struct Healthz {}
@@ -52,7 +53,12 @@ async fn main() {
         .init();
 
     // Extract config with a REDACT_ env var prefix
-    let config = redact_config::new("REDACT").unwrap();
+    let config_path = if Path::new("/etc/homepage/config").is_dir() {
+        "/etc/homepage/config"
+    } else {
+        "./config"
+    };
+    let config = redact_config::new(config_path, "APPCFG").unwrap();
 
     // Determine port to listen on
     let port = match config.get_int("server.port") {
@@ -160,7 +166,8 @@ async fn main() {
                     tls_cert_vec
                         .write_all(b"-----BEGIN CERTIFICATE-----\n")
                         .unwrap();
-                    base64::encode(tls_cert)
+                    b64_general_purpose::STANDARD
+                        .encode(tls_cert)
                         .as_bytes()
                         .chunks(64)
                         .for_each(|chunk| {
@@ -261,7 +268,8 @@ async fn main() {
                     tls_cert_vec
                         .write_all(b"-----BEGIN CERTIFICATE-----\n")
                         .unwrap();
-                    base64::encode(tls_cert)
+                    b64_general_purpose::STANDARD
+                        .encode(tls_cert)
                         .as_bytes()
                         .chunks(64)
                         .for_each(|chunk| {
