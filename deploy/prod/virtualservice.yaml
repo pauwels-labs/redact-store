@@ -1,0 +1,31 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: "${name}"
+spec:
+  hosts:
+  - "${domain}"
+  http:
+  - name: main
+    match:
+    - uri:
+        prefix: "/t/${tenantname}/${name}/"
+    rewrite:
+      uri: "/"
+    route:
+    - destination:
+        port:
+          number: 8080
+        host: "${name}"
+  - name: trailing-slash-redirect
+    match:
+    - uri:
+        exact: "/t/${tenantname}/${name}"
+    redirect:
+      uri: "/t/${tenantname}/${name}/"
+  - name: root
+    route:
+    - destination:
+        port:
+          number: 8080
+        host: "${name}${namesuffix}"

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "${name}"
+spec:
+  replicas: 1
+  template:
+    spec:
+      serviceAccountName: "${name}"
+      securityContext:
+        fsGroup: 2000
+      containers:
+      - name: main
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "appimage"
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 256m
+            memory: 256Mi
+          requests:
+            cpu: 256m
+            memory: 256Mi
+        envFrom:
+        - secretRef:
+            name: "env-${name}"
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/${name}/config"
+      volumes:
+      - name: config
+        secret:
+          secretName: "config-${name}"
