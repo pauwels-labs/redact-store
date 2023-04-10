@@ -1,10 +1,10 @@
-FROM rust:1.57.0-alpine3.13 AS builder
+FROM rust:1.68.2-alpine3.17 AS builder
 
 # Create an unprivileged user
 RUN adduser --disabled-password --no-create-home --uid 1000 notroot notroot
 
 # Perform apk actions as root
-RUN apk add --no-cache musl-dev=1.2.2-r1 openssl-dev=1.1.1q-r0 libsodium-dev=1.0.18-r0 make=4.3-r0
+RUN apk add --no-cache musl-dev=1.2.3-r4 openssl-dev=3.0.8-r3 libsodium-dev=1.0.18-r2 make=4.3-r1
 
 # Create build directory as root
 WORKDIR /usr/src
