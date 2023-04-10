@@ -44,3 +44,4 @@ Once there, click on Teams, select Join a team, and our team name is pauwelslabs
 Once you're in, Redact discussion happens in the #redact channel.
 
 Discussions in the Keybase team should be respectful, focused on Redact, and free of profanity.
+
