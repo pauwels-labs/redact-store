@@ -53,8 +53,8 @@ async fn main() {
         .init();
 
     // Extract config with a REDACT_ env var prefix
-    let config_path = if Path::new("/etc/homepage/config").is_dir() {
-        "/etc/homepage/config"
+    let config_path = if Path::new("/etc/redact-store/config").is_dir() {
+        "/etc/redact-store/config"
     } else {
         "./config"
     };
