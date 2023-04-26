@@ -312,64 +312,75 @@ async fn main() {
         .with(warp::log("routes"))
         .recover(handle_rejection);
 
-    // Build TLS configuration.
-    let tls_config = {
-        let cert_path = config.get_str("tls.server.certificate.path").unwrap();
-
-        // Select a certificate to use.
-        let file = File::open(&cert_path).unwrap();
-        let mut reader = io::BufReader::new(file);
-        let certs = rustls_pemfile::certs(&mut reader)
-            .map_err(|_err| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Cannot load certificate from {}", &cert_path),
-                )
-            })
-            .unwrap()
-            .into_iter()
-            .map(Certificate)
-            .collect();
-        let storer_key_path = config.get_str("tls.server.key.path").unwrap();
-        let file = File::open(&storer_key_path).unwrap();
-        let mut reader = io::BufReader::new(file);
-        let keys = rustls_pemfile::pkcs8_private_keys(&mut reader)
-            .map_err(|_err| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("Cannot load private key from {}", &storer_key_path),
-                )
-            })
-            .unwrap();
-        let key = PrivateKey(
-            keys.into_iter()
-                .next()
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("No keys found in the private key file {}", storer_key_path),
-                    )
-                })
-                .unwrap(),
-        );
-        //let mut server_config =
-        //tokio_rustls::rustls::ServerConfig::new(Arc::new(AllowAnyClient {}));
-        let server_config = tokio_rustls::rustls::ServerConfig::builder()
-            .with_safe_defaults()
-            .with_client_cert_verifier(Arc::new(AllowAnyClient {}))
-            .with_single_cert(certs, key)
-            .unwrap();
-        Arc::new(server_config)
-    };
-
     let socket_addr: SocketAddr = ([0, 0, 0, 0], port).into();
     let listener = net::TcpListener::bind(&socket_addr).await.unwrap();
     println!("starting server listening on ::{}", port);
     loop {
-        if let Err(e) =
-            bootstrap::serve_mtls(&listener, tls_config.clone(), total_route.clone()).await
-        {
-            eprintln!("Problem accepting TLS connection: {}", e);
+        let serve_with_xfcc = config.get_bool("tls.use_xfcc_header").unwrap();
+        if !serve_with_xfcc {
+            // Build TLS configuration.
+            let tls_config = {
+                let cert_path = config.get_str("tls.server.certificate.path").unwrap();
+
+                // Select a certificate to use.
+                let file = File::open(&cert_path).unwrap();
+                let mut reader = io::BufReader::new(file);
+                let certs = rustls_pemfile::certs(&mut reader)
+                    .map_err(|_err| {
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("Cannot load certificate from {}", &cert_path),
+                        )
+                    })
+                    .unwrap()
+                    .into_iter()
+                    .map(Certificate)
+                    .collect();
+                let storer_key_path = config.get_str("tls.server.key.path").unwrap();
+                let file = File::open(&storer_key_path).unwrap();
+                let mut reader = io::BufReader::new(file);
+                let keys = rustls_pemfile::pkcs8_private_keys(&mut reader)
+                    .map_err(|_err| {
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("Cannot load private key from {}", &storer_key_path),
+                        )
+                    })
+                    .unwrap();
+                let key = PrivateKey(
+                    keys.into_iter()
+                        .next()
+                        .ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::Other,
+                                format!(
+                                    "No keys found in the private key file {}",
+                                    storer_key_path
+                                ),
+                            )
+                        })
+                        .unwrap(),
+                );
+                //let mut server_config =
+                //tokio_rustls::rustls::ServerConfig::new(Arc::new(AllowAnyClient {}));
+                let server_config = tokio_rustls::rustls::ServerConfig::builder()
+                    .with_safe_defaults()
+                    .with_client_cert_verifier(Arc::new(AllowAnyClient {}))
+                    .with_single_cert(certs, key)
+                    .unwrap();
+                Arc::new(server_config)
+            };
+
+            if let Err(e) =
+                bootstrap::serve_mtls(&listener, tls_config.clone(), total_route.clone()).await
+            {
+                eprintln!("Problem accepting TLS connection: {}", e);
+            }
+        } else if let Err(e) = bootstrap::serve_xfcc(&listener, total_route.clone()).await {
+            eprintln!(
+                "Problem accepting non-TLS connection using XFCC header: {}",
+                e
+            );
         }
     }
 }

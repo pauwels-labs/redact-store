@@ -4,7 +4,7 @@ use tokio::net;
 use tokio_rustls::{
     rustls::{
         server::{ClientCertVerified, ClientCertVerifier},
-        ServerConfig,
+        Certificate, ServerConfig,
     },
     TlsAcceptor,
 };
@@ -76,6 +76,53 @@ where
         });
         if let Err(e) = hyper::server::conn::Http::new()
             .serve_connection(stream, service)
+            .await
+        {
+            eprintln!("Error handling request: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
+pub async fn serve_xfcc<F>(listener: &net::TcpListener, warp_filter: F) -> io::Result<()>
+where
+    F: warp::Filter + Clone + Send + Sync + 'static,
+    <F::Future as futures::TryFuture>::Ok: warp::Reply,
+{
+    // Wait for an incoming TCP connection
+    let (socket, _) = listener.accept().await?;
+
+    // Hand off actual request handling to a new tokio task
+    tokio::task::spawn(async move {
+        // Turn the warp filter into a service, but instead of using that
+        // service directly as usual, we wrap it around another service
+        // so that we can modify the request and inject the client certificate
+        // into the request extentions before it goes into the filter.
+        let mut svc = warp::service(warp_filter.clone());
+        let service = service::service_fn(move |mut req| {
+            let cert = req
+                .headers()
+                .get("x-forwarded-client-cert")
+                .and_then(|xfcc_header| xfcc_header.to_str().ok())
+                .and_then(|xfcc_header_str| {
+                    xfcc_header_str
+                        .split(';')
+                        .find(|&elem| &elem[0..5] == "Cert=")
+                })
+                .and_then(|encoded_cert| {
+                    urlencoding::decode(&encoded_cert[6..encoded_cert.len() - 1]).ok()
+                })
+                .map(|cert| cert.into_owned().into_bytes());
+
+            if let Some(cert) = cert {
+                req.extensions_mut().insert(Certificate(cert));
+            }
+
+            svc.call(req)
+        });
+        if let Err(e) = hyper::server::conn::Http::new()
+            .serve_connection(socket, service)
             .await
         {
             eprintln!("Error handling request: {}", e);
