@@ -24,8 +24,9 @@ use std::{
     convert::TryInto,
     fs::File,
     io::{self, ErrorKind, Read, Write},
-    net::SocketAddr,
+    net::{IpAddr, SocketAddr},
     path::Path,
+    str::FromStr,
     sync::Arc,
 };
 use tokio::net;
@@ -312,7 +313,8 @@ async fn main() {
         .with(warp::log("routes"))
         .recover(handle_rejection);
 
-    let socket_addr: SocketAddr = ([0, 0, 0, 0], port).into();
+    let addr = IpAddr::from_str("::0").unwrap();
+    let socket_addr: SocketAddr = (addr, port).into();
     let listener = net::TcpListener::bind(&socket_addr).await.unwrap();
     println!("starting server listening on ::{}", port);
     loop {
