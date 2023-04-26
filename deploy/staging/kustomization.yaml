@@ -27,7 +27,7 @@ patches:
     - op: add
       path: /spec/data/-
       value:
-        secretKey: gcloud-sa-key.json"
+        secretKey: gcloud-sa-key.json
         remoteRef:
           key: "tenants/t-${tenantname}/configs/staging/${name}${namesuffix}/config"
           property: gcloud-sa-key.json
