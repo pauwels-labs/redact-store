@@ -316,7 +316,7 @@ async fn main() {
     let addr = IpAddr::from_str("::0").unwrap();
     let socket_addr: SocketAddr = (addr, port).into();
     let listener = net::TcpListener::bind(&socket_addr).await.unwrap();
-    println!("starting server listening on ::{}", port);
+    println!("starting server listening on [::0]:{}", port);
     loop {
         let serve_with_xfcc = config.get_bool("tls.use_xfcc_header").unwrap();
         if !serve_with_xfcc {
