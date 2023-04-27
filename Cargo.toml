@@ -38,7 +38,7 @@ pretty_env_logger = "0.4.0"
 async-trait = "0.1.68"
 async-recursion = "1.0.4"
 #redact-crypto = "2.7.1"
-redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto", rev = "fe2a1d10d5e9293e06e438dc5cbcc909f231b063" }
+redact-crypto = { git = "https://github.com/pauwels-labs/redact-crypto", rev = "fdea273e281f270f0af33fae157ea597f902c952" }
 tokio-rustls = { version = "0.23.1", features = ["dangerous_configuration"] }
 hyper = "0.14.25"
 x509-parser = "0.15.0"
