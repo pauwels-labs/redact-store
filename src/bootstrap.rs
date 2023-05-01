@@ -113,10 +113,11 @@ where
                 .and_then(|encoded_cert| {
                     urlencoding::decode(&encoded_cert[6..encoded_cert.len() - 1]).ok()
                 })
-                .map(|cert| cert.into_owned().into_bytes());
+                .and_then(|cert| pem::parse(cert.into_owned()).ok());
 
             if let Some(cert) = cert {
-                req.extensions_mut().insert(Certificate(cert));
+                req.extensions_mut()
+                    .insert(Certificate(cert.into_contents()));
             }
 
             svc.call(req)

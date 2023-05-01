@@ -1,8 +1,8 @@
 server:
   port: 8081
 tls:
-  generate: true
-  use_xfcc_header: false
+  generate: false
+  use_xfcc_header: true
   ca:
     certificate:
       o: pauwels
