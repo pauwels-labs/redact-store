@@ -67,9 +67,19 @@ replacements:
       group: external-secrets.io
       version: v1beta1
       kind: ExternalSecret
+      labelSelector: "secretType=env"
+    fieldPaths:
+    - "spec.dataFrom.*.extract.key"
+    options:
+      delimiter: "/"
+      index: 4
+  - select:
+      group: external-secrets.io
+      version: v1beta1
+      kind: ExternalSecret
+      labelSelector: "secretType=config"
     fieldPaths:
     - "spec.data.*.remoteRef.key"
-    - "spec.dataFrom.*.extract.key"
     options:
       delimiter: "/"
       index: 4
