@@ -237,6 +237,8 @@ async fn main() {
                     let storer_cert_o = config.get_str("tls.server.certificate.o").unwrap();
                     let storer_cert_ou = config.get_str("tls.server.certificate.ou").unwrap();
                     let storer_cert_cn = config.get_str("tls.server.certificate.cn").unwrap();
+                    let storer_cert_san = config.get_str(
+                        "tls.server.certificate.subjectalternativename").unwrap();
                     let storer_cert_dn = DistinguishedName {
                         o: &storer_cert_o,
                         ou: &storer_cert_ou,
@@ -255,7 +257,7 @@ async fn main() {
                         not_before,
                         not_after,
                         false,
-                        Some(&["localhost"]),
+                        Some(&[&storer_cert_san]),
                     )
                     .unwrap();
                     let path_str = &config.get_str("tls.server.certificate.path").unwrap();
